@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Copper Scrapper</title>
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d1017; --panel: #181c26; --panel2: #232836; --text: #eef1f7; --muted: #8d96a8;
+    --side: 330px;
+    --cu: #e2833b; --cu2: #f6ad66; --green: #5fe08a; --red: #ff5a5f; --line: #2c3242; --out: #10131c; --yellow: #f5d90a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  textarea, input { -webkit-user-select: text; user-select: text; }
+  body { background: var(--bg); color: var(--text); font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; display: grid; grid-template-columns: var(--side) 1fr; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; border-radius: 10px; background: var(--panel2); padding: 8px 12px; }
+  button:hover:not(:disabled) { background: #2f3547; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--cu); color: #1a1208; font-weight: 800; }
+  button.primary:hover:not(:disabled) { background: var(--cu2); }
+
+  /* ---------- sidebar ---------- */
+  #side { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  #side h1 { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -.01em; }
+  #side h2, #helpbox h2 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat { background: var(--panel2); border-radius: 10px; padding: 8px; font-size: 11px; color: var(--muted); }
+  .stat b { display: block; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .toolrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tool { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; padding: 8px 4px; }
+  .tool span { font-size: 24px; }
+  .tool.sel { outline: 2px solid var(--cu); background: #2c2620; }
+  .bin-item { display: flex; align-items: center; gap: 10px; background: var(--panel2); border-radius: 12px; padding: 6px 8px; margin-bottom: 6px; }
+  .bin-item canvas { width: 54px; height: 45px; flex: none; }
+  .bin-item .n { flex: 1; font-size: 13px; font-weight: 700; }
+  .bin-item .n small { display: block; color: var(--muted); font-weight: 500; font-size: 11px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row .n { flex: 1; font-size: 13px; font-weight: 700; }
+  .row .n small { display: block; color: var(--muted); font-weight: 500; font-size: 11px; }
+  .row button { font-size: 12px; }
+  .row button.limit { background: #2c3242; color: var(--green); font-weight: 800; cursor: default; opacity: 1; }
+  .up { color: var(--green); } .down { color: var(--red); }
+  .big { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  label.opt { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  .side-foot { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+  .side-foot button { font-size: 12px; padding: 5px 8px; align-self: flex-start; }
+
+  /* ---------- workbench ---------- */
+  #work { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #bench { flex: 1; position: relative; overflow: hidden;
+    background:
+      repeating-linear-gradient(0deg, #0000 0 79px, #ffffff0c 79px 81px),
+      repeating-linear-gradient(90deg, #0000 0 79px, #ffffff0c 79px 81px),
+      radial-gradient(ellipse at 50% 35%, #2c3548, #151a25 75%); }
+  #benchlabel { position: absolute; left: 22px; top: 14px; font-size: 13px; letter-spacing: .3em; font-weight: 900; color: #ffffff30; pointer-events: none; }
+  #benchempty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #ffffff55; font-weight: 700; font-size: 18px; pointer-events: none; padding: 20px; }
+  #bar { position: relative; min-height: 130px; background: #12151d; display: flex; align-items: center; gap: 16px; padding: 18px 16px 8px; }
+  #binwrap { flex: 1; min-width: 0; }
+  .binlabel { font-size: 11px; letter-spacing: .12em; font-weight: 800; color: var(--muted); }
+  #binlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 6px; padding: 4px 0 6px; }
+  #binlist .bin-item { display: grid; grid-template-columns: 34px 1fr; gap: 3px 6px; align-items: center; margin: 0; padding: 5px 6px; }
+  #binlist .bin-item canvas { width: 34px; height: 28px; }
+  #binlist .bin-item .n { font-size: 11px; line-height: 1.15; }
+  #binlist .bin-item .n small { font-size: 10px; }
+  #binlist .bin-item button { grid-column: 1 / -1; padding: 2px 6px; font-size: 12px; }
+  #binwrap .hint { margin: 0; }
+  #bar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px; background: repeating-linear-gradient(-45deg, var(--yellow) 0 14px, var(--out) 14px 28px); }
+  #rummage { flex: none; font-size: 18px; font-weight: 900; padding: 14px 30px; border-radius: 16px; background: var(--yellow); color: #231c00; box-shadow: 0 5px 0 #a89400; transition: transform .08s, box-shadow .08s; }
+  #rummage:hover:not(:disabled) { background: #ffe94d; }
+  #rummage:active { transform: translateY(4px); box-shadow: 0 1px 0 #a89400; }
+  #rummage.pulse { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.07); } }
+
+  /* crewmate mascot */
+  #crewwrap { position: relative; width: 96px; flex: none; align-self: flex-end; }
+  #crew { width: 96px; display: block; animation: crewbob 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
+  @keyframes crewbob { 50% { transform: translateY(-4px) scaleY(1.03); } }
+  #say { position: absolute; left: 70px; bottom: 82px; background: #fff; color: #10131c; font-weight: 800; font-size: 13px; padding: 6px 10px; border-radius: 12px 12px 12px 2px; white-space: nowrap; opacity: 0; transform: scale(.7); transform-origin: 0 100%; transition: .15s; pointer-events: none; z-index: 5; }
+  #say.on { opacity: 1; transform: scale(1); }
+
+  /* items */
+  .card { position: absolute; pointer-events: none; animation: dropin .55s cubic-bezier(.3,1.5,.5,1) both; touch-action: none; }
+  @keyframes dropin { 0% { transform: translateY(-420px) scale(.8,1.25); opacity: 0; } 55% { opacity: 1; } 75% { transform: translateY(0) scale(1.18,.82); } 100% { transform: none; } }
+  .inner { animation: idle 3.4s ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes idle { 0%,100% { transform: translateY(0) rotate(-.3deg); } 50% { transform: translateY(-3px) rotate(.3deg); } }
+  .inner.hit { animation: jiggle .16s linear infinite; }
+  @keyframes jiggle { 0%,100% { transform: translate(-.6px,0); } 50% { transform: translate(.6px,-.6px); } }
+  .inner.lift { animation: none; transform: scale(1.05) rotate(2deg); filter: drop-shadow(0 18px 14px #0008); }
+  .head { display: flex; align-items: center; gap: 6px; padding: 0 2px 6px; cursor: grab; touch-action: none; user-select: none; }
+  .head:active { cursor: grabbing; }
+  .chip { background: #fff; color: var(--out); border: 3px solid var(--out); border-radius: 99px; padding: 1px 9px; font-size: 11px; font-weight: 900; }
+  .chip.c0 { background: #c98a5c; } .chip.c2 { background: #8cf0b0; }
+  .grip { margin-left: auto; width: 34px; height: 12px; border-radius: 6px; border: 3px solid var(--out); background: repeating-linear-gradient(90deg, var(--yellow) 0 4px, #0000 4px 8px) , #3b4358; }
+  .pbarrow { display: flex; align-items: center; gap: 8px; margin: 6px 6px 0; }
+  .pbarrow .pbar { flex: 1; margin: 0; }
+  .pct { font-size: 12px; font-weight: 900; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 var(--out); }
+  .body canvas.hint { pointer-events: none; animation: hintp .9s ease-in-out infinite; }
+  @keyframes hintp { 50% { opacity: .25; } }
+  .cnd0 { color: #c98a5c; } .cnd1 { color: #c4ccd8; } .cnd2 { color: #8cf0b0; } .cnd3 { color: #ffd25e; }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font: 700 11px inherit; color: var(--text); }
+  .body { position: relative; margin: 0 auto; filter: drop-shadow(0 8px 0 #0006); }
+  .body canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  .strips { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .strip { position: absolute; left: 0; width: 100%; height: auto; }
+  .inner.pop { animation: ipop .14s ease-out; }
+  @keyframes ipop { 50% { transform: scale(.985, .975); } }
+  .body canvas.shine { display: none; pointer-events: none; }
+  .body canvas.shine.on { display: block; animation: twk 1.8s ease-in-out infinite; }
+  @keyframes twk { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+  #bench { touch-action: none; }
+  #benchtools { position: absolute; right: 14px; top: 10px; z-index: 1000000; display: flex; gap: 8px; }
+  #benchtools button { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 99px; background: #10131ccc; border: 2px solid #ffffff22; }
+  #moveToggle.on { background: var(--yellow); color: #231c00; }
+  #soundToggle.off { background: #4a1f2b; color: #ffb3bd; }
+  #savebox { position: fixed; inset: 0; z-index: 300; background: #080a0fcc; display: grid; place-items: center; padding: 16px; }
+  #savebox[hidden] { display: none; }
+  #savebox .sbox { width: min(540px, 100%); background: var(--panel); border: 4px solid var(--out); border-radius: 22px; padding: 18px; box-shadow: 0 10px 0 #0008; }
+  #savebox h3 { margin: 0 0 6px; font-size: 18px; font-weight: 900; }
+  #savebox p { margin: 0 0 10px; font-size: 14px; color: var(--muted); line-height: 1.4; }
+  #savetext { width: 100%; height: 130px; resize: vertical; background: var(--bg); color: var(--text); border: 2px solid var(--line); border-radius: 10px; padding: 8px; font: 12px ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+  .sbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .tag { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: max-content; min-width: 110px; max-width: 100%; margin: 6px auto 0; background: #10131ccf; border: 3px solid var(--out); border-radius: 12px; padding: 3px 10px 5px; font-size: 11px; font-weight: 800; }
+  .tag .pbar { grid-column: 1 / -1; height: 6px; margin: 0; border-width: 2px; }
+  .tag .pct { font-variant-numeric: tabular-nums; text-align: right; }
+  .pbar { height: 10px; margin: 6px 6px 0; background: var(--out); border: 3px solid var(--out); border-radius: 99px; overflow: hidden; }
+  .pbar i { display: block; height: 100%; width: 0; background: var(--cu); border-radius: 99px; }
+
+  #ring { position: fixed; pointer-events: none; display: none; z-index: 2147483000; width: 0; height: 0; }
+  #ring span { position: absolute; left: -6px; top: -36px; transform-origin: 25% 90%; transform: rotate(-12deg); filter: drop-shadow(0 2px 0 #10131c); }
+  #ring.hit span { animation: clk .18s steps(4); }
+  @keyframes clk { 50% { transform: rotate(-48deg) translate(-4px, 8px) scale(1.15); } }
+  .nug { position: fixed; width: 18px; height: 10px; background: linear-gradient(#f6ad66, #c26a2a); border: 3px solid var(--out); border-radius: 4px; pointer-events: none; z-index: 50; }
+  .pop { position: fixed; pointer-events: none; font-weight: 900; font-size: 26px; color: #fff; -webkit-text-stroke: 6px var(--out); paint-order: stroke fill; animation: pop 1.1s ease-out forwards; z-index: 60; }
+  @keyframes pop { from { opacity: 1; transform: translate(-50%, 0) scale(.8); } 20% { transform: translate(-50%, -20px) scale(1.2); } to { opacity: 0; transform: translate(-50%, -90px) scale(1); } }
+
+  /* animated icons */
+  .ic { display: inline-block; vertical-align: middle; overflow: visible; flex: none; }
+  .row .n .ic { margin-right: 6px; }
+  .ic g, .ic path { transform-box: view-box; }
+  .ic .jl { transform-origin: 24px 25px; animation: snapL 1.4s ease-in-out infinite; }
+  .ic .jr { transform-origin: 24px 25px; animation: snapR 1.4s ease-in-out infinite; }
+  @keyframes snapL { 50% { transform: rotate(7deg); } } @keyframes snapR { 50% { transform: rotate(-7deg); } }
+  .ic .swing { transform-origin: 11px 40px; animation: swing 1.2s ease-in-out infinite; }
+  @keyframes swing { 0%,100% { transform: rotate(8deg); } 55% { transform: rotate(-26deg); } 62% { transform: rotate(14deg); } }
+  .ic .spin { transform-origin: 15px 29px; animation: spin .7s linear infinite; }
+  .ic .spin.slow { transform-origin: 24px 24px; animation: spin 4s linear infinite; }
+  #rummage:hover .ic .spin.slow { animation-duration: .8s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ic .spark { animation: spark .25s steps(2) infinite; }
+  @keyframes spark { 50% { opacity: .15; } }
+  .ic .sway { transform-origin: 28px 44px; animation: sway 2.2s ease-in-out infinite; }
+  @keyframes sway { 50% { transform: rotate(9deg); } 0%,100% { transform: rotate(-7deg); } }
+  .ic .pulse { transform-origin: 24px 24px; animation: ipulse 1.6s ease-in-out infinite; }
+  @keyframes ipulse { 50% { transform: scale(1.14); } }
+  .ic .lid { transform-origin: 9px 14px; animation: lid 2.4s ease-in-out infinite; }
+  @keyframes lid { 0%,60%,100% { transform: rotate(0); } 75% { transform: rotate(-16deg); } }
+  .ic .bob { animation: ibob 1.2s ease-in-out infinite; }
+  @keyframes ibob { 50% { transform: translateY(-3px); } }
+  .ic .gleam { animation: ibob 2.4s ease-in-out infinite; }
+  .ic .twinkle { transform-origin: 39px 10px; animation: twinkle 1.6s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100% { transform: scale(.4) rotate(0); opacity: .5; } 50% { transform: scale(1.1) rotate(45deg); opacity: 1; } }
+  .ic .pryg { transform-origin: 9px 41px; animation: pryk 1.4s ease-in-out infinite; }
+  @keyframes pryk { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-14deg); } }
+  .ic .flame { transform-origin: 40px 33px; animation: flame .28s ease-in-out infinite alternate; }
+  @keyframes flame { from { transform: scale(.85,.9); } to { transform: scale(1.15,1.1); } }
+  .ic .tap { animation: tapk .9s ease-in-out infinite; }
+  @keyframes tapk { 50% { transform: translate(3px,-3px); } }
+  /* tool icons: choppy stop-motion frames, still until you hover or select them */
+  .tl * { animation-play-state: paused !important; }
+  .tool:hover .tl *, .tool.sel .tl *, #ring .tl *, .row:hover .tl * { animation-play-state: running !important; }
+  .tl .jl, .tl .jr, .tl .swing, .tl .spark, .tl .pryg, .tl .flame, .tl .tap { animation-timing-function: steps(4, jump-none) !important; }
+  .tl .spin { animation-timing-function: steps(8) !important; animation-duration: .9s !important; }
+  .tool.sel .tl { animation: toolpop .5s steps(5) 1; }
+  @keyframes toolpop { 40% { transform: scale(1.3) rotate(-8deg); } 70% { transform: scale(.9) rotate(4deg); } }
+  #side h1 { display: flex; align-items: center; gap: 8px; }
+  #rummage { display: inline-flex; align-items: center; gap: 10px; }
+  .pop .ic { margin: 0 4px; }
+  .tool .ic { display: block; }
+
+  .chip.c1 { background: #fff; } .chip.c3 { background: linear-gradient(90deg, #ffe27a, #ffb347); }
+  .chip.r { background: #dfe6ee; }
+  .rar0 { color: #9aa5b8 !important; } .rar1 { color: #5fe08a !important; } .rar2 { color: #6aa8ff !important; } .rar3 { color: #ffb347 !important; }
+  .lockbox { background: var(--panel2); border-radius: 12px; padding: 12px; font-size: 13px; }
+  .lockbox ul { margin: 8px 0 10px; padding-left: 18px; color: var(--muted); }
+  .lockbox li.ok { color: var(--green); }
+  .lockbox button { width: 100%; }
+  #welcome { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 50; width: min(440px, calc(100% - 24px)); background: var(--panel); border: 3px solid var(--out); border-radius: 16px; padding: 12px 14px; box-shadow: 0 6px 0 #0007; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.4; animation: modalin .3s cubic-bezier(.3,1.5,.5,1) both; }
+  #welcome[hidden] { display: none; }
+  #welcome b { font-size: 16px; }
+  #welcome .wbtns { display: flex; gap: 8px; margin-top: 4px; }
+  #welcome .wbtns button { padding: 6px 12px; font-size: 13px; }
+  #pausebox { position: fixed; inset: 0; z-index: 2147483500; background: #080a0fd0; display: grid; place-items: center; align-content: center; gap: 14px; text-align: center; color: #fff; }
+  #pausebox[hidden] { display: none; }
+  #pausebox h3 { margin: 0; font-size: 28px; font-weight: 900; }
+  #pausebox p { margin: 0; color: var(--muted); font-size: 14px; }
+  /* portal ads */
+  #boostsec { background: var(--panel2); border-radius: 14px; padding: 10px 12px; }
+  #boostsec h2 { margin-bottom: 6px; }
+  #boostbody { display: flex; flex-direction: column; gap: 8px; }
+  #boostbody .desc { font-size: 12px; color: var(--muted); }
+  #boostbody .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  #boostbody .btns button { flex: 1 1 120px; font-size: 13px; min-height: 40px; }
+  .boostbtn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+  .adbtn { background: #5b6dff; color: #fff; font-weight: 800; }
+  .adbtn:hover:not(:disabled) { background: #7686ff; }
+  #boostpay { background: #2f3547; font-weight: 800; }
+  .ic .clapt { transform-origin: 6px 16px; animation: clapk 1.8s ease-in-out infinite; }
+  @keyframes clapk { 0%,70%,100% { transform: rotate(0); } 82% { transform: rotate(-14deg); } }
+  .adtag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: #10131c; color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .06em; vertical-align: middle; }
+  .boostnow { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; }
+  .boostnow b { color: var(--yellow); font-size: 18px; }
+  #adblock { position: fixed; inset: 0; z-index: 2147483600; background: #000c; color: #fff; display: grid; place-items: center; font: 800 22px system-ui, sans-serif; letter-spacing: .04em; }
+  #adblock[hidden] { display: none; }
+  /* workers */
+  #crewsec { background: var(--panel2); border-radius: 14px; padding: 10px 12px 6px; }
+  #crewsec h2 { margin-bottom: 6px; }
+  .crewtotal { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .crewtotal b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .crewtotal .per { color: var(--muted); font-size: 12px; margin-left: 2px; }
+  .crewrow { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 2px 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12px; }
+  .crewrow:first-child { border-top: 0; }
+  .crewrow .miners { display: flex; gap: 1px; align-items: flex-end; min-width: 0; flex-wrap: wrap; }
+  .crewrow .miners .ic .bob { animation-delay: var(--d, 0s); }
+  .crewrow .amt { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  .crewrow .amt small { display: block; color: var(--muted); font-weight: 500; font-size: 10px; }
+  .crewrow .nm { grid-column: 2 / 4; color: var(--muted); font-size: 11px; margin-top: -2px; }
+  #crewsec .tl * { animation-play-state: running !important; }
+  .crewtotal .ic .bob { animation-duration: .8s; }
+  /* dialogue / tutorial */
+  #ov { position: fixed; inset: 0; background: #080a0fbb; z-index: 100; display: none; }
+  #modal { position: fixed; z-index: 200; display: none; left: calc(var(--side) + (100vw - var(--side)) / 2); transform: translateX(-50%); top: 60px; width: min(500px, calc(100vw - var(--side) - 30px)); background: var(--panel); border: 4px solid var(--out); border-radius: 22px; padding: 18px; box-shadow: 0 10px 0 #0008; animation: modalin .3s cubic-bezier(.3,1.5,.5,1) both; }
+  @keyframes modalin { from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(.9); } }
+  #modal .mhead { display: flex; align-items: center; gap: 14px; }
+  #modal .mhead svg { width: 64px; flex: none; animation: crewbob 1.6s ease-in-out infinite; }
+  #modal h3 { margin: 0; font-size: 18px; font-weight: 900; }
+  #modal p { margin: 12px 0 0; font-size: 15px; line-height: 1.45; min-height: 66px; }
+  #modal .mfoot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  #modal .dots { display: flex; gap: 5px; margin-right: auto; }
+  #modal .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--panel2); }
+  #modal .dots i.on { background: var(--yellow); }
+  .hl { position: relative; z-index: 101; background: var(--panel); border-radius: 12px; outline: 3px solid var(--yellow); outline-offset: 4px; animation: glow 1s ease-in-out infinite; }
+  @keyframes glow { 50% { outline-color: #fff; } }
+  #cirussec { border: 2px solid #8b5cf6; border-radius: 14px; padding: 10px; background: #1d1830; display: none; }
+  #cirussec .chead { display: flex; align-items: center; gap: 10px; }
+  #cirussec .chead svg { width: 48px; flex: none; }
+  #cirussec .msg { font-size: 12px; margin-top: 8px; color: #d6ccff; min-height: 16px; }
+  #cirussec .btns { display: flex; gap: 8px; margin-top: 8px; }
+  #cirussec .btns button { flex: 1; background: #8b5cf6; color: #fff; font-weight: 800; font-size: 13px; }
+  #cirussec .btns button:hover:not(:disabled) { background: #a07bff; }
+
+  @media (max-height: 640px) {   /* short screens: portal iframes, laptops, landscape phones */
+    :root { --side: 270px; }
+    #side { padding: 10px; gap: 10px; }
+    #side h1 { font-size: 17px; }
+    .stats { gap: 6px; } .stat { padding: 6px 8px; } .stat b { font-size: 13px; }
+    .toolrow { gap: 6px; } .tool { padding: 5px 2px; font-size: 10px; } .tool .ic { width: 28px; height: 28px; }
+    .row { padding: 6px 0; } .row .n { font-size: 12px; }
+    #bar { min-height: 0; padding: 14px 10px 6px; gap: 10px; }
+    #crewwrap, #crew { width: 52px; } #say { left: 34px; bottom: 46px; font-size: 11px; }
+    #rummage { font-size: 15px; padding: 9px 16px; border-radius: 12px; box-shadow: 0 4px 0 #a89400; }
+    #binlist { grid-template-columns: repeat(auto-fill, minmax(106px, 1fr)); gap: 5px; padding: 2px 0 4px; }
+    #binlist .bin-item { padding: 4px 5px; grid-template-columns: 26px minmax(0, 1fr); } #binlist .bin-item canvas { width: 26px; height: 22px; } #binlist .bin-item .n { font-size: 10px; overflow-wrap: anywhere; } #binlist .bin-item button { font-size: 11px; padding: 1px 4px; }
+    .binlabel { font-size: 10px; }
+    #benchtools { top: 6px; right: 8px; gap: 5px; } #benchtools button { font-size: 11px; padding: 4px 9px; }
+    #benchlabel { top: 10px; left: 14px; font-size: 11px; }
+    #welcome { top: 40px; font-size: 12px; padding: 8px 10px; }
+  }
+  @media (max-height: 480px) {   /* very short: 640x360 */
+    :root { --side: 200px; }
+    #side { padding: 8px; gap: 8px; }
+    #side h1 { font-size: 15px; } #side h2 { font-size: 10px; margin-bottom: 4px; }
+    .stat { font-size: 9px; } .stat b { font-size: 12px; }
+    .tool small { display: none; } .tool { font-size: 9px; } .tool .ic { width: 22px; height: 22px; }
+    #helpbox { display: none; }
+    #bar { padding: 12px 8px 4px; gap: 8px; align-items: center; }
+    #crewwrap, #crew { width: 40px; } #say { display: none; }
+    #rummage { font-size: 13px; padding: 7px 11px; } #rummage .ic { width: 18px; height: 18px; }
+    #binwrap { min-width: 0; } .binlabel { display: none; }
+    #binlist { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 92px; overflow-x: auto; }
+    #binhint { font-size: 10px; }
+    #crewsec { padding: 6px 8px; } .crewtotal b { font-size: 15px; }
+    #modal { top: 12px; padding: 12px; } #modal p { min-height: 0; font-size: 13px; margin-top: 8px; } #modal .mhead svg { width: 44px; } #modal h3 { font-size: 15px; }
+  }
+  @media (max-width: 520px) {   /* narrow phones */
+    #benchtools { left: 8px; right: 8px; top: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    #benchtools button { font-size: 10px; padding: 3px 8px; }
+    #benchlabel { display: none; }
+  }
+  @media (max-width: 860px) and (orientation: portrait) {
+    :root { --side: 330px; }
+    #modal { left: 50%; width: calc(100vw - 24px); top: 16px; }
+    body { display: flex; flex-direction: column; overflow: auto; height: auto; }
+    #work { order: 1; min-height: 100svh; flex: none; }
+    #side { order: 2; flex: none; border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
+    #bench { min-height: 380px; }
+    #bar { flex-wrap: wrap; justify-content: center; gap: 8px 12px; padding: 18px 12px 12px; }
+    #crewwrap { width: 56px; } #crew { width: 56px; } #say { left: 40px; bottom: 56px; }
+    #rummage { font-size: 16px; padding: 12px 22px; }
+    #binwrap { flex: 1 1 100%; order: 3; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f7fb"/><stop offset=".55" stop-color="#b6c0d0"/><stop offset="1" stop-color="#7a879c"/></linearGradient>
+  <linearGradient id="gDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9aa5ba"/><stop offset="1" stop-color="#3a4256"/></linearGradient>
+  <linearGradient id="gRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7e82"/><stop offset="1" stop-color="#cf2a31"/></linearGradient>
+  <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86b8ff"/><stop offset="1" stop-color="#2a5fd0"/></linearGradient>
+  <linearGradient id="gWood" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e8ab72"/><stop offset="1" stop-color="#97592f"/></linearGradient>
+  <linearGradient id="gYellow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffec7c"/><stop offset="1" stop-color="#e49a00"/></linearGradient>
+  <linearGradient id="gFlame" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff4d1a"/><stop offset="1" stop-color="#ffb62e"/></linearGradient>
+</defs></svg>
+
+<aside id="side">
+  <h1><span id="logo"></span>Copper Scrapper</h1>
+  <div class="stats">
+    <div class="stat">Cash<b id="money">$0</b></div>
+    <div class="stat">Copper<b id="cu">0 lb</b></div>
+    <div class="stat">Price<b id="price">$0</b></div>
+  </div>
+
+  <div id="tiersec">
+    <h2>Tiers <small style="text-transform:none;letter-spacing:0">(keys 1-6)</small></h2>
+    <div class="toolrow" id="toolrow"></div>
+  </div>
+
+  <div id="yardsec">
+    <h2>Scrapyard</h2>
+    <div>Selling <span class="big" id="sellamt">0 lb</span> for <span class="big" id="sellval">$0</span></div>
+    <div class="hint">The scrapyard pays a fixed $20 per lb.</div>
+    <button class="primary" id="sell" style="width:100%;margin-top:6px">Sell all copper</button>
+  </div>
+
+  <div id="crewsec" hidden>
+    <h2>Workers</h2>
+    <div class="crewtotal"><span id="crewicon"></span><div><b id="crewusd">$0</b><span class="per"> / min</span><div class="hint" style="margin:0" id="crewlb"></div></div></div>
+    <div id="crewrows"></div>
+  </div>
+
+  <div id="boostsec" hidden>
+    <h2>Copper boost</h2>
+    <div id="boostbody"></div>
+    <div class="hint" id="boostmsg" style="min-height:16px"></div>
+  </div>
+
+  <div id="cirussec">
+    <div class="chead"><div id="cirusface"></div><div><b>Cirus</b> · black market<div class="hint" style="margin:0" id="cirusinfo"></div></div></div>
+    <div class="msg" id="cirusmsg"></div>
+    <div class="btns"><button id="cSellAll">Sell all</button><button id="cSellHalf">Sell half</button></div>
+  </div>
+
+  <div id="shopsec">
+    <h2 id="shoptitle">Upgrades</h2>
+    <div id="shoplist"></div>
+  </div>
+
+  <div id="helpbox">
+    <h2>Controls</h2>
+    <div class="hint" style="line-height:1.9">Click an item (or press <kbd>Space</kbd> while the mouse is on it) to peel its casing off<br><kbd>Shift</kbd> + drag an item to move it (or turn on Move mode, top right of the workbench)<br><kbd>1</kbd> - <kbd>6</kbd> switch tool tier<br><kbd>M</kbd> sound on or off</div>
+  </div>
+
+  <div class="side-foot">
+    <span>Progress saves automatically.</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="howto">How to play</button><button id="savebtn">Save code</button><button id="reset">Reset game</button></div>
+  </div>
+</aside>
+
+<div id="work">
+  <div id="bench">
+    <div id="benchlabel">WORKBENCH</div>
+    <div id="benchtools"><button id="pauseToggle">Pause</button><button id="soundToggle">Sound: on</button><button id="moveToggle">Move mode: off</button></div>
+    <div id="welcome" hidden><b>Welcome!</b><span id="welcometext">Buy a free item below and click it to peel it open. Sell the copper, then buy better junk.</span><div class="wbtns"><button id="welcomehow" class="primary">How to play</button><button id="welcomeok">Got it</button></div></div>
+    <div id="benchempty">Buy an item from the recycle bin below,<br>then click it, or press Space, to peel the casing off.</div>
+  </div>
+  <div id="bar">
+    <div id="crewwrap">
+      <div id="say"></div>
+      <svg id="crew" viewBox="0 0 120 124" aria-hidden="true"><rect x="86" y="30" width="7" height="70" rx="3" transform="rotate(18 90 65)" fill="#c98a5c" stroke="#10131c" stroke-width="4"/><path d="M70 22 Q96 12 112 40 Q96 30 76 34 Z" transform="rotate(18 90 65)" fill="#9aa5b8" stroke="#10131c" stroke-width="4" stroke-linejoin="round"/><rect x="38" y="92" width="16" height="22" rx="5" fill="#3b4358" stroke="#10131c" stroke-width="5"/><rect x="62" y="92" width="16" height="22" rx="5" fill="#3b4358" stroke="#10131c" stroke-width="5"/><path d="M32 58 Q32 50 42 50 H74 Q84 50 84 58 V98 Q84 102 80 102 H36 Q32 102 32 98 Z" fill="#e2833b" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><rect x="44" y="66" width="28" height="16" rx="4" fill="#c26a2a" stroke="#10131c" stroke-width="3"/><rect x="20" y="56" width="14" height="30" rx="7" fill="#e2833b" stroke="#10131c" stroke-width="5"/><circle cx="58" cy="36" r="20" fill="#f2c9a0" stroke="#10131c" stroke-width="5"/><circle cx="51" cy="38" r="2.8" fill="#10131c"/><circle cx="65" cy="38" r="2.8" fill="#10131c"/><path d="M50 47 Q58 52 66 47" fill="none" stroke="#10131c" stroke-width="3" stroke-linecap="round"/><path d="M34 32 Q34 8 58 8 Q82 8 82 32 Z" fill="#f5d90a" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><rect x="30" y="29" width="56" height="8" rx="4" fill="#f5d90a" stroke="#10131c" stroke-width="4"/><circle cx="58" cy="17" r="7" fill="#fff" stroke="#10131c" stroke-width="3.5"/><circle cx="82" cy="40" r="4" fill="#f2c9a0" stroke="#10131c" stroke-width="3"/></svg>
+    </div>
+    <button id="rummage">Rummage</button>
+    <div id="binwrap">
+      <div class="binlabel" id="binlabel">RECYCLE BIN</div>
+      <div id="binlist"></div>
+      <div class="hint" id="binhint"></div>
+    </div>
+  </div>
+</div>
+
+<div id="savebox" hidden><div class="sbox"><h3>Save code</h3><p>Copy this code to keep your progress or move it to another browser. To restore a save, paste its code here and press Load.</p><textarea id="savetext" spellcheck="false" aria-label="Save code"></textarea><div class="hint" id="savemsg" style="min-height:18px"></div><div class="sbtns"><button class="primary" id="savecopy">Copy</button><button id="saveload">Load this code</button><button id="saveclose">Close</button></div></div></div>
+<div id="adblock" hidden>Ad break</div>
+<div id="pausebox" hidden><h3>Paused</h3><p>Press Esc or click Resume.</p><button class="primary" id="resumebtn" style="font-size:16px;padding:10px 22px">Resume</button></div>
+<div id="ov"></div>
+<div id="modal"><div class="mhead"><div id="mface"></div><h3 id="mtitle"></h3></div><p id="mtext"></p><div class="mfoot"><div class="dots" id="mdots"></div><button id="mskip">Skip</button><button id="mback">Back</button><button class="primary" id="mnext">Next</button></div></div>
+<div id="ring"><span></span></div>
+
+<script>
+// ---------- data ----------
+// Copper amounts are game values, not real weights. They grow ~20x per tier: a charger is a fraction of a pound,
+// the last tier's items are worth hundreds of millions to billions.
+const RARITY = ['Common', 'Uncommon', 'Rare', 'Epic'];
+const CONDS = [{ n: 'Rusty', m: 0.5 }, { n: 'Used', m: 1 }, { n: 'Good', m: 1.6 }, { n: 'Pristine', m: 2.6 }];
+const TIERS = [
+  { id: 'stripper', name: 'Wire stripper', rad: 5, cost: 0, req: null,
+    base: { power: 9, scrap: 6, luck: 8, bin: 20, worker: 26 },
+    items: [
+      { id: 'usb',    name: 'Charging cable',  cu: 0.1,  cost: 0,  art: 'usb' },
+      { id: 'wall',   name: 'Wall charger',    cu: 0.25, cost: 2,  art: 'wall' },
+      { id: 'laptop', name: 'Laptop charger',  cu: 0.6,  cost: 5,  art: 'laptop' },
+      { id: 'cord',   name: 'Extension cord',  cu: 1.5,  cost: 12, art: 'cord' } ] },
+  { id: 'hammer', name: 'Hammer', rad: 6, cost: 190, req: { tier: 'stripper', power: 12 },
+    base: { power: 1390, scrap: 842, luck: 1040, bin: 2080, worker: 2780 },
+    items: [
+      { id: 'micro',  name: 'Microwave',       cu: 5,  cost: 40,  art: 'micro' },
+      { id: 'dryer',  name: 'Dryer',           cu: 9,  cost: 70,  art: 'dryer' },
+      { id: 'washer', name: 'Washing machine', cu: 17, cost: 140, art: 'washer' },
+      { id: 'fridge', name: 'Refrigerator',    cu: 25, cost: 200, art: 'fridge' } ] },
+  { id: 'saw', name: 'Angle grinder', rad: 7, cost: 29000, req: { tier: 'hammer', power: 12 },
+    base: { power: 53100, scrap: 31800, luck: 42300, bin: 84400, worker: 106000 },
+    items: [
+      { id: 'ac',     name: 'Window AC unit',  cu: 100, cost: 800,  art: 'ac' },
+      { id: 'trans',  name: 'Transformer',     cu: 220, cost: 1800, art: 'trans' },
+      { id: 'cond',   name: 'AC condenser',    cu: 500, cost: 4000, art: 'cond' } ] },
+  { id: 'pry', name: 'Pry bar', rad: 8, cost: 1040000, req: { tier: 'saw', power: 12 },
+    base: { power: 2510000, scrap: 1440000, luck: 1870000, bin: 4170000, worker: 5230000 },
+    items: [
+      { id: 'drill',  name: 'Power drill',        cu: 2500,  cost: 20000,  art: 'drill' },
+      { id: 'vac',    name: 'Vacuum motor',       cu: 4000,  cost: 32000,  art: 'vac' },
+      { id: 'opener', name: 'Garage door opener', cu: 7000,  cost: 56000,  art: 'opener' },
+      { id: 'alt',    name: 'Car alternator',     cu: 12500, cost: 100000, art: 'alt' } ] },
+  { id: 'torch', name: 'Blowtorch', rad: 9, cost: 646000000, wall: true, req: { tier: 'pry', power: 12 },
+    base: { power: 63000000, scrap: 37600000, luck: 46200000, bin: 105000000, worker: 125000000 },
+    items: [
+      { id: 'sauce', name: 'Saucepan',     cu: 60000,  cost: 480000,  art: 'sauce' },
+      { id: 'bowl',  name: 'Mixing bowl',  cu: 100000, cost: 800000,  art: 'bowl' },
+      { id: 'pan',   name: 'Frying pan',   cu: 180000, cost: 1440000, art: 'pan' },
+      { id: 'pot',   name: 'Stockpot',     cu: 300000, cost: 2400000, art: 'pot' } ] },
+  { id: 'chisel', name: 'Chisel', rad: 10, cost: 1040000000, req: { tier: 'torch', power: 12 },
+    base: { power: 4990000000, scrap: 3080000000, luck: 3740000000, bin: 8080000000, worker: 9950000000 },
+    items: [
+      { id: 'ring',    name: 'Copper jewelry',      cu: 20000000,  cost: 160000000,  art: 'ring' },
+      { id: 'fixture', name: 'Antique fixture',     cu: 35000000,  cost: 280000000,  art: 'fixture' },
+      { id: 'plate',   name: 'Hammered wall plate', cu: 60000000,  cost: 480000000,  art: 'plate' },
+      { id: 'statue',  name: 'Copper statue',       cu: 100000000, cost: 800000000,  art: 'statue' } ] },
+];
+const SECTION = { stripper: 'Cables & chargers', hammer: 'Appliances', saw: 'Heavy equipment', pry: 'Motors & alternators', torch: 'Cookware', chisel: 'Decorative art' };
+const TI = Object.fromEntries(TIERS.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
+// How many times each upgrade can be bought before it says "Limit reached"
+const CAP = { power: 25, scrap: 20, luck: 15, bin: 15, workers: 30 };
+const MAX_BENCH = 6;
+const GROW = { power: 1.2, scrap: 1.22, luck: 1.3, bin: 1.28, workers: 1.14 };   // price growth per level bought
+const PW = 9 / (CAP.power - 1);                  // spreads the same full-power bonus (+135% copper) over every level
+const powerMult = p => 1 + 0.15 * PW * (p - 1);
+const lk = l => l * (10 / CAP.luck);             // luck on the old 0-10 scale, so the odds at the cap are unchanged
+const binCount = st => 3 + Math.floor(st.bin / 3);
+
+// ---------- state ----------
+const freshTier = on => ({ on, power: on ? 1 : 0, scrap: 0, luck: 0, bin: 0, workers: 0 });
+const PRICE = 20;   // fixed scrapyard price per lb
+const fresh = () => ({ money: 0, cu: 0, active: 'stripper',
+  t: { stripper: freshTier(true), hammer: freshTier(false), saw: freshTier(false), pry: freshTier(false), torch: freshTier(false), chisel: freshTier(false) },
+  stats: { items: 0, copper: 0, sec: 0 }, finished: false, muted: false, boostUntil: 0,
+  tutorialDone: false, metCirus: false, nextCirus: 0, cirusUntil: 0, cirusMult: 1.6 });
+let S = load();
+let bins = { stripper: [], hammer: [], saw: [], pry: [], torch: [], chisel: [] }, bench = [], zTop = 10, Ads = null;
+
+function load() { try { const d = Object.assign(fresh(), JSON.parse(localStorage.getItem('copperScrapper'))); d.t = Object.assign(fresh().t, d.t); return d; } catch { return fresh(); } }
+function benchSnapshot() { return bench.filter(b => !b.done).map(b => ({ tier: b.tier.id, it: b.it.id, cond: b.cond, x: b.card.offsetLeft, y: b.card.offsetTop, prog: b.prog })); }
+function save() {
+  const json = JSON.stringify(Object.assign({}, S, { benchSave: benchSnapshot() }));
+  try { localStorage.setItem('copperScrapper', json); } catch {}
+  try { if (Ads && Ads.kind === 'crazy' && Ads.ready) window.CrazyGames.SDK.data.setItem('copperScrapper', json); } catch {}
+}
+
+const $ = id => document.getElementById(id);
+const rand = () => Math.random();
+const compact = n => n >= 1e12 ? +(n / 1e12).toFixed(2) + 'T' : n >= 1e9 ? +(n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? +(n / 1e6).toFixed(2) + 'M' : null;
+const fmt = n => compact(n) ?? (n < 10 ? n.toFixed(2).replace(/\.?0+$/, '') : n.toLocaleString(undefined, { maximumFractionDigits: 1 }));
+const money = n => '$' + (compact(Math.round(n)) ?? (n < 100 ? (Number.isInteger(+n.toFixed(2)) ? Math.round(n) : n.toFixed(2)) : Math.round(n).toLocaleString()));
+const cur = () => TI[S.active], cs = () => S.t[S.active];
+const maxLuck = () => Math.max(...Object.values(S.t).map(x => x.luck));
+// scrap radius in css px: starts tiny, grows with Scrap size and Power of that tool
+const radiusFor = (tier, s) => (tier.rad + 3 * s.scrap * (10 / CAP.scrap)) * (1 + 0.05 * PW * (s.power - 1));
+const effR = it => radiusFor(it.tier, S.t[it.tier.id]);
+// rarer = more copper. luck flattens the odds a little
+const weights = (tier, luck) => tier.items.map(i => Math.pow(i.cu, -(1.3 - 0.06 * lk(luck))));
+// luck mostly pushes you toward Pristine
+function rollCond(luck) {
+  const pP = Math.min(0.95, 0.04 + 0.09 * lk(luck)), u = rand();
+  if (u < pP) return 3;
+  const v = (u - pP) / (1 - pP); return v < 0.4 ? 0 : v < 0.75 ? 1 : 2;
+}
+
+// ---------- animated icons (drawn in code, no emoji) ----------
+const D = '#10131c';
+const IL = (x1, y1, x2, y2, col, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${D}" stroke-width="${w + 5}" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
+const IC = (cx, cy, r, f) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}" stroke="${D}" stroke-width="3.5"/>`;
+const IP = (d, f) => `<path d="${d}" fill="${f}" stroke="${D}" stroke-width="3.5" stroke-linejoin="round"/>`;
+const ingot = (x, y, w, h) => IP(`M${x + 4} ${y} H${x + w - 4} L${x + w} ${y + h} H${x} Z`, '#e2833b') + `<rect x="${x + 6}" y="${y + 3}" width="${w - 12}" height="2.5" rx="1.2" fill="#ffd9ad"/>`;
+const ARM = `<path d="M14.5 5 L20.5 3.5 L25.5 23.5 L21 26 Z" fill="url(#gMetal)" stroke="${D}" stroke-width="2.6" stroke-linejoin="round"/><path d="M16.2 8.4 L19.6 7.6 M17.2 12.2 L20.7 11.4" stroke="${D}" stroke-width="1.5" opacity=".6"/><path d="M20 26.5 L26 23.5 L39.5 40 Q42 43.5 39 45.5 Q35.5 47 33.5 44.5 Z" fill="url(#gRed)" stroke="${D}" stroke-width="2.6" stroke-linejoin="round"/><path d="M27 28.5 L36.5 40.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".5"/><path d="M29.5 32.5 L33.5 31 M32 36 L36 34.4" stroke="${D}" stroke-width="1.3" opacity=".45"/>`;
+const ICONS = {
+  stripper: `<ellipse cx="24" cy="45.6" rx="14" ry="2.3" fill="#0005"/><g class="jl">${ARM}</g><g class="jr"><g transform="translate(48,0) scale(-1,1)">${ARM}</g></g><circle cx="24" cy="25" r="3.7" fill="url(#gYellow)" stroke="${D}" stroke-width="2.4"/><circle cx="23" cy="24" r="1" fill="#fffa"/>`,
+  hammer: `<ellipse cx="22" cy="45.6" rx="13" ry="2.3" fill="#0005"/><g class="swing"><g transform="rotate(45 24 24)"><rect x="21" y="17" width="6" height="29" rx="3" fill="url(#gWood)" stroke="${D}" stroke-width="2.8"/><path d="M21.6 36 H26.4 M21.6 40 H26.4" stroke="${D}" stroke-width="1.6" opacity=".6"/><rect x="11" y="4" width="26" height="14" rx="3" fill="url(#gMetal)" stroke="${D}" stroke-width="2.8"/><rect x="11" y="4" width="7" height="14" rx="3" fill="url(#gDark)" stroke="${D}" stroke-width="2.8"/><path d="M21 7.5 H34" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".8"/></g></g>`,
+  saw: `<ellipse cx="24" cy="45.6" rx="15" ry="2.3" fill="#0005"/><g transform="rotate(-32 30 21)"><rect x="21" y="15.5" width="24" height="11" rx="5" fill="url(#gBlue)" stroke="${D}" stroke-width="2.8"/><path d="M34 17 V25 M37 17 V25 M40 17 V25" stroke="${D}" stroke-width="1.5" opacity=".6"/><rect x="44" y="18" width="5" height="6" rx="2" fill="url(#gDark)" stroke="${D}" stroke-width="2.2"/><path d="M24 18.5 H32" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></g><path d="M25 27 L21 37" stroke="${D}" stroke-width="7" stroke-linecap="round"/><path d="M25 27 L21 37" stroke="url(#gDark)" stroke-width="4" stroke-linecap="round"/><g class="spin"><circle cx="15" cy="31" r="11.5" fill="url(#gMetal)" stroke="${D}" stroke-width="2.8"/><circle cx="15" cy="31" r="8" fill="none" stroke="#5b6579" stroke-width="1.6" stroke-dasharray="2.2 2.2"/><path d="M15 21 V41 M5 31 H25 M8 24 L22 38 M22 24 L8 38" stroke="${D}" stroke-width="1.2" opacity=".55"/><circle cx="15" cy="31" r="2.8" fill="url(#gYellow)" stroke="${D}" stroke-width="2"/></g><g class="spark"><path d="M3 41 L8 37 M7 45 L11 40 M2 35 L6 33" stroke="#ffd23f" stroke-width="2.2" stroke-linecap="round"/></g>`,
+  luck: `<g class="sway">${IL(24, 28, 29, 44, '#2fb05a', 3)}${IC(17, 17, 8, '#5fe08a')}${IC(31, 17, 8, '#5fe08a')}${IC(17, 30, 8, '#5fe08a')}${IC(31, 30, 8, '#5fe08a')}${IC(24, 24, 4.5, '#2fb05a')}</g>`,
+  scratch: `<g class="pulse">${IC(24, 24, 16, '#e2833b')}<line x1="14" y1="31" x2="27" y2="14" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><line x1="21" y1="35" x2="34" y2="18" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>`,
+  bin: `${IP('M11 19 H37 L35 42 Q35 44 33 44 H15 Q13 44 13 42 Z', '#4d8dff')}<line x1="19" y1="24" x2="20" y2="39" stroke="${D}" stroke-width="2.5" stroke-linecap="round"/><line x1="29" y1="24" x2="28" y2="39" stroke="${D}" stroke-width="2.5" stroke-linecap="round"/><g class="lid"><rect x="8" y="10" width="32" height="8" rx="4" fill="#8d96a8" stroke="${D}" stroke-width="3.5"/><rect x="19" y="5" width="10" height="6" rx="2" fill="#8d96a8" stroke="${D}" stroke-width="3"/></g>`,
+  worker: `<g class="bob">${IP('M13 22 Q13 18 17 18 H31 Q35 18 35 22 V38 Q35 41 32 41 H16 Q13 41 13 38 Z', '#e2833b')}${IC(24, 12, 8, '#f2c9a0')}${IP('M15 12 Q15 2 24 2 Q33 2 33 12 Z', '#f5d90a')}<circle cx="24" cy="6" r="2.5" fill="#fff"/>${IL(37, 12, 42, 40, '#c98a5c', 3)}${IP('M32 8 Q44 5 46 16 Q40 11 34 13 Z', '#9aa5b8')}</g>`,
+  pry: `<ellipse cx="24" cy="45.6" rx="14" ry="2.3" fill="#0005"/><g class="pryg"><path d="M9 42 L33 15" stroke="${D}" stroke-width="9.5" stroke-linecap="round"/><path d="M9 42 L33 15" stroke="url(#gDark)" stroke-width="6" stroke-linecap="round"/><path d="M11 42 L33 17" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".55"/><path d="M11 40 L17.5 32.5" stroke="${D}" stroke-width="9.5" stroke-linecap="round"/><path d="M11 40 L17.5 32.5" stroke="url(#gYellow)" stroke-width="6" stroke-linecap="round"/><path d="M31 17 Q36 7 44 11 L45.5 15.5 L41 15.5 Q38.5 14.5 37 18 Z" fill="url(#gDark)" stroke="${D}" stroke-width="2.6" stroke-linejoin="round"/><path d="M41.5 12.5 L43.5 15" stroke="${D}" stroke-width="1.6"/></g>`,
+  torch: `<ellipse cx="18" cy="45.6" rx="15" ry="2.3" fill="#0005"/><rect x="3" y="22" width="24" height="19" rx="7" fill="url(#gYellow)" stroke="${D}" stroke-width="2.8"/><path d="M11 22.5 V40.5 M19 22.5 V40.5" stroke="${D}" stroke-width="1.5" opacity=".45"/><path d="M7 27 H22" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".7"/><rect x="12" y="16" width="6" height="7" rx="1.5" fill="url(#gDark)" stroke="${D}" stroke-width="2.2"/><circle cx="15" cy="14.5" r="3.8" fill="url(#gRed)" stroke="${D}" stroke-width="2.2"/><rect x="27" y="29" width="9" height="5" rx="2" fill="url(#gMetal)" stroke="${D}" stroke-width="2.2"/><rect x="34.5" y="27" width="4.5" height="9" rx="1.8" fill="url(#gDark)" stroke="${D}" stroke-width="2.2"/><g class="flame"><path d="M39 31.5 Q44 22.5 48 31.5 Q44 40.5 39 31.5 Z" fill="url(#gFlame)" stroke="${D}" stroke-width="1.8" stroke-linejoin="round"/><path d="M40.5 31.5 Q43 27 45.8 31.5 Q43 36 40.5 31.5 Z" fill="#fff3a0"/></g>`,
+  chisel: `<ellipse cx="24" cy="45.6" rx="12" ry="2.3" fill="#0005"/><g class="tap"><g transform="rotate(40 24 24)"><rect x="20.5" y="24" width="7" height="21" rx="3.5" fill="url(#gWood)" stroke="${D}" stroke-width="2.8"/><path d="M21 33 H27 M21 37 H27" stroke="${D}" stroke-width="1.6" opacity=".55"/><rect x="19.5" y="21" width="9" height="5" rx="1.2" fill="url(#gDark)" stroke="${D}" stroke-width="2.4"/><path d="M21 21 V9.5 L24 4 L27 9.5 V21 Z" fill="url(#gMetal)" stroke="${D}" stroke-width="2.6" stroke-linejoin="round"/><path d="M23 18 V9.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/></g></g><g class="spark"><path d="M40 7 L44 3 M43 12 L47 11 M36 3 L37 0" stroke="#ffd23f" stroke-width="2.2" stroke-linecap="round"/></g>`,
+  clap: `<g class="clapg"><path d="M6 18 H42 V40 Q42 43 39 43 H9 Q6 43 6 40 Z" fill="#fff" stroke="${D}" stroke-width="3" stroke-linejoin="round"/><g class="clapt"><path d="M5 8 L41 4 L43 14 L7 18 Z" fill="#10131c" stroke="${D}" stroke-width="2.6" stroke-linejoin="round"/><path d="M13 7 L17 14 M22 6 L26 13 M31 5 L35 12" stroke="#fff" stroke-width="3"/></g><path d="M20 24 L32 30 L20 36 Z" fill="#e2833b" stroke="${D}" stroke-width="2.2" stroke-linejoin="round"/></g>`,
+  refresh: `<g class="spin slow"><path d="M38 24 A14 14 0 1 1 32 12.5" fill="none" stroke="#231c00" stroke-width="5.5" stroke-linecap="round"/><path d="M26 8 L38 8 L36 20 Z" fill="#231c00" stroke="#231c00" stroke-width="2" stroke-linejoin="round"/></g>`,
+  logo: `<g class="gleam">${ingot(3, 31, 21, 12)}${ingot(24, 31, 21, 12)}${ingot(13, 19, 21, 12)}</g><g class="twinkle"><path d="M39 3 Q39 10 46 10 Q39 10 39 17 Q39 10 32 10 Q39 10 39 3 Z" fill="#fff" stroke="${D}" stroke-width="2" stroke-linejoin="round"/></g>`,
+};
+const ic = (n, size = 24) => `<svg class="ic ic-${n}${TI[n] ? ' tl' : ''}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">${ICONS[n]}</svg>`;
+
+
+// ---------- sound ----------
+let ac, master, adMute = false;
+const applyGain = () => { if (master) master.gain.value = (S.muted || adMute) ? 0 : 1; };
+function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = (S.muted || adMute) ? 0 : 1; master.connect(ac.destination); } catch {} } if (ac && ac.state === 'suspended') ac.resume(); return ac; }
+function tone(f, d, type = 'sine', v = .15, when = 0) {
+  const a = audio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.value = f; o.connect(g); g.connect(master);
+  const t = a.currentTime + when;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+  o.start(t); o.stop(t + d);
+}
+let lastHit = 0;
+function hitSound() {
+  const n = performance.now(); if (n - lastHit < 70) return; lastHit = n;
+  const a = audio(); if (!a) return;
+  const len = a.sampleRate * .06, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * (1 - i / len);
+  const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = 'bandpass'; f.frequency.value = 1200 + rand() * 1500; g.gain.value = .25;
+  s.buffer = buf; s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+const coinSound = () => { tone(880, .12, 'square', .08); tone(1320, .2, 'square', .08, .08); };
+const sellSound = () => { [660, 880, 1100, 1320].forEach((f, i) => tone(f, .15, 'triangle', .12, i * .07)); };
+const thudSound = () => tone(110, .18, 'sine', .3);
+
+// ---------- art (Among Us-ish: flat colors, thick outlines, visor glints) ----------
+const OUT = '#10131c';
+const rp = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
+function blob(c, x, y, w, h, r, fill, dark) {
+  rp(c, x, y, w, h, r); c.fillStyle = fill; c.fill();
+  c.save(); rp(c, x, y, w, h, r); c.clip();
+  c.fillStyle = dark; c.fillRect(x, y + h * .74, w, h * .3); c.fillRect(x + w * .9, y, w * .12, h);
+  c.restore();
+  rp(c, x, y, w, h, r); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+}
+function visor(c, x, y, w, h, r) {
+  rp(c, x, y, w, h, r);
+  const g = c.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#c8f6ff'); g.addColorStop(1, '#6fb9d6');
+  c.fillStyle = g; c.fill(); c.lineWidth = 12; c.strokeStyle = OUT; c.stroke();
+  rp(c, x + w * .1, y + h * .12, w * .38, Math.max(10, h * .14), h * .07); c.fillStyle = '#ffffffcc'; c.fill();
+}
+function disc(c, x, y, r, fill) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = fill; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke(); }
+function feet(c, x1, x2, y) { [x1, x2].forEach(x => { rp(c, x, y, 80, 34, 12); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 12; c.strokeStyle = OUT; c.stroke(); }); }
+
+const ART = {
+  cable(c) {
+    const cols = ['#ff4d52', '#f5d90a', '#4d8dff', '#ff7ac8'];
+    const wave = (y0, w, color) => { c.beginPath(); c.moveTo(80, y0); for (let x = 80; x < 640; x += 140) c.bezierCurveTo(x + 40, y0 - 70, x + 100, y0 + 70, x + 140, y0); c.lineWidth = w; c.strokeStyle = color; c.lineCap = 'round'; c.stroke(); };
+    cols.forEach((_, i) => wave(150 + i * 100, 58, OUT));
+    cols.forEach((col, i) => wave(150 + i * 100, 38, col));
+    cols.forEach((_, i) => { [50, 600].forEach(x => { rp(c, x, 150 + i * 100 - 24, 70, 48, 10); c.fillStyle = '#d5dbe6'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke(); }); });
+  },
+  micro(c) {
+    feet(c, 130, 510, 466);
+    blob(c, 90, 130, 540, 345, 56, '#7c4dff', '#5b32d1');
+    visor(c, 140, 185, 300, 235, 36);
+    rp(c, 470, 185, 112, 235, 24); c.fillStyle = '#3a2a8c'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke();
+    ['#ff5252', '#ffd23f', '#5fe08a'].forEach((col, i) => disc(c, 526, 240 + i * 58, 19, col));
+  },
+  washer(c) {
+    feet(c, 170, 470, 536);
+    blob(c, 140, 50, 440, 500, 56, '#2fc7d9', '#1b9aad');
+    rp(c, 178, 86, 364, 72, 24); c.fillStyle = '#e6fbff'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke();
+    disc(c, 225, 122, 20, '#ffd23f'); disc(c, 285, 122, 20, '#ff5252');
+    rp(c, 345, 106, 160, 32, 14); c.fillStyle = '#10131c'; c.fill();
+    disc(c, 360, 350, 160, '#e6fbff');
+    const g = c.createLinearGradient(240, 230, 480, 470); g.addColorStop(0, '#c8f6ff'); g.addColorStop(1, '#5fa8c7');
+    disc(c, 360, 350, 122, g);
+    c.beginPath(); c.arc(360, 350, 80, 3.6, 5.0); c.lineWidth = 14; c.strokeStyle = '#ffffffcc'; c.lineCap = 'round'; c.stroke();
+  },
+  ac(c) {
+    blob(c, 50, 170, 620, 280, 50, '#eef3f9', '#b7c3d3');
+    visor(c, 92, 206, 150, 62, 24);
+    [0, 1, 2].forEach(i => disc(c, 570 + i * 0 - 70 + i * 52, 237, 14, ['#5fe08a', '#ffd23f', '#ff5252'][i]));
+    for (let i = 0; i < 4; i++) { rp(c, 100, 296 + i * 36, 520, 24, 12); c.fillStyle = '#8aa0bb'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke(); }
+  },
+  fridge(c) {
+    feet(c, 210, 430, 560);
+    blob(c, 180, 20, 360, 548, 50, '#5ee07a', '#2fb05a');
+    c.beginPath(); c.moveTo(180, 215); c.lineTo(540, 215); c.lineWidth = 12; c.strokeStyle = OUT; c.stroke();
+    visor(c, 300, 66, 190, 92, 32);
+    [[228, 80, 96], [228, 255, 170]].forEach(([x, y, h]) => { rp(c, x, y, 26, h, 13); c.fillStyle = '#eef3f9'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke(); });
+    disc(c, 440, 300, 18, '#ff4d52'); disc(c, 488, 350, 18, '#f5d90a');
+  },
+};
+function washLike(c, fill, dark, dry) {
+  feet(c, 170, 470, 536);
+  blob(c, 140, 50, 440, 500, 56, fill, dark);
+  rp(c, 178, 86, 364, 72, 24); c.fillStyle = '#e6fbff'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke();
+  if (dry) { for (let i = 0; i < 5; i++) { rp(c, 205 + i * 62, 108, 40, 28, 10); c.fillStyle = '#8aa0bb'; c.fill(); c.lineWidth = 6; c.stroke(); } }
+  else { disc(c, 225, 122, 20, '#ffd23f'); disc(c, 285, 122, 20, '#ff5252'); rp(c, 345, 106, 160, 32, 14); c.fillStyle = '#10131c'; c.fill(); }
+  disc(c, 360, 350, dry ? 150 : 160, '#e6fbff');
+  const g = c.createLinearGradient(240, 230, 480, 470); g.addColorStop(0, '#c8f6ff'); g.addColorStop(1, '#5fa8c7');
+  disc(c, 360, 350, dry ? 112 : 122, g);
+  c.beginPath(); c.arc(360, 350, 78, 3.6, 5.0); c.lineWidth = 14; c.strokeStyle = '#ffffffcc'; c.lineCap = 'round'; c.stroke();
+}
+const wave = (c, w, col, pts) => { c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i += 3) c.bezierCurveTo(...pts[i], ...pts[i + 1], ...pts[i + 2]); c.lineWidth = w; c.strokeStyle = col; c.lineCap = 'round'; c.stroke(); };
+const metal = (c, x, y, w, h, r) => { rp(c, x, y, w, h, r); c.fillStyle = '#d5dbe6'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke(); };
+Object.assign(ART, {
+  usb(c) {
+    const pts = [[150, 330], [250, 130], [330, 130], [380, 300], [430, 470], [520, 470], [570, 270]];
+    wave(c, 66, OUT, pts); wave(c, 44, '#eef3f9', pts);
+    metal(c, 40, 292, 125, 76, 14); rp(c, 62, 318, 72, 24, 6); c.fillStyle = '#3b4358'; c.fill();
+    rp(c, 540, 232, 130, 76, 28); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke();
+    metal(c, 625, 248, 48, 44, 12);
+  },
+  wall(c) {
+    wave(c, 56, OUT, [[360, 430], [430, 480], [290, 540], [380, 585]]); wave(c, 36, '#eef3f9', [[360, 430], [430, 480], [290, 540], [380, 585]]);
+    [300, 392].forEach(x => metal(c, x, 50, 28, 100, 8));
+    blob(c, 210, 140, 300, 300, 60, '#eef3f9', '#b7c3d3');
+    disc(c, 360, 225, 16, '#5fe08a');
+    rp(c, 295, 295, 130, 56, 14); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke();
+  },
+  laptop(c) {
+    const pts = [[510, 305], [640, 305], [640, 470], [500, 480], [380, 490], [300, 520], [200, 500]];
+    wave(c, 56, OUT, pts); wave(c, 34, '#3b4358', pts);
+    metal(c, 100, 468, 105, 64, 14);
+    blob(c, 80, 190, 440, 230, 50, '#3a3f55', '#262a3b');
+    disc(c, 150, 255, 16, '#5fe08a');
+    rp(c, 200, 238, 240, 76, 18); c.fillStyle = '#1c2030'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke();
+    rp(c, 224, 262, 150, 10, 5); c.fillStyle = '#5b6380'; c.fill();
+  },
+  cord(c) {
+    const ring = (rx, ry, w, col) => { c.beginPath(); c.ellipse(390, 330, rx, ry, 0, 0, 7); c.lineWidth = w; c.strokeStyle = col; c.stroke(); };
+    [[270, 200], [200, 135], [130, 70]].forEach(([rx, ry]) => ring(rx, ry, 62, OUT));
+    [[270, 200], [200, 135], [130, 70]].forEach(([rx, ry]) => ring(rx, ry, 42, '#ffc83d'));
+    metal(c, 560, 70, 100, 84, 16); [585, 625].forEach(x => { rp(c, x - 7, 40, 14, 34, 4); c.fillStyle = '#9aa5b8'; c.fill(); c.lineWidth = 6; c.stroke(); });
+    blob(c, 30, 260, 150, 140, 28, '#ffffff', '#c8d0dc');
+    [0, 1, 2].forEach(i => { rp(c, 54, 282 + i * 36, 100, 24, 8); c.fillStyle = '#3b4358'; c.fill(); });
+  },
+  dryer(c) { washLike(c, '#ff7ac8', '#d655a3', true); },
+  motor(c) {
+    metal(c, 150, 446, 400, 44, 12); rp(c, 150, 446, 400, 44, 12); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 12; c.strokeStyle = OUT; c.stroke();
+    metal(c, 510, 262, 160, 62, 12);
+    blob(c, 100, 170, 430, 290, 70, '#4d8dff', '#2f68d6');
+    for (let i = 0; i < 8; i++) { c.beginPath(); c.moveTo(170 + i * 46, 192); c.lineTo(170 + i * 46, 440); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke(); }
+    blob(c, 250, 100, 140, 90, 18, '#8d96a8', '#6b7384');
+  },
+  trans(c) {
+    [220, 360, 500].forEach(x => { metal(c, x - 24, 40, 48, 170, 16); for (let j = 0; j < 3; j++) metal(c, x - 36, 70 + j * 38, 72, 18, 9); });
+    [[80, 240, 64, 250], [576, 240, 64, 250]].forEach(([x, y, w, h]) => { rp(c, x, y, w, h, 14); c.fillStyle = '#b8801a'; c.fill(); c.lineWidth = 10; c.strokeStyle = OUT; c.stroke(); });
+    blob(c, 130, 190, 460, 330, 40, '#f5c542', '#d19e1a');
+    rp(c, 260, 270, 200, 140, 14); c.fillStyle = '#eef3f9'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke();
+    [0, 1, 2].forEach(i => { rp(c, 285, 296 + i * 34, 150, 12, 6); c.fillStyle = '#8aa0bb'; c.fill(); });
+  },
+  cond(c) {
+    feet(c, 150, 490, 540);
+    blob(c, 100, 230, 520, 320, 50, '#9aa5b8', '#7a8499');
+    rp(c, 70, 170, 580, 90, 40); c.fillStyle = '#6b7384'; c.fill(); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+    disc(c, 360, 410, 124, '#3b4358');
+    for (let a = 0; a < 4; a++) { c.save(); c.translate(360, 410); c.rotate(a * Math.PI / 2 + .4); rp(c, 14, -20, 96, 40, 20); c.fillStyle = '#d5dbe6'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke(); c.restore(); }
+    disc(c, 360, 410, 28, '#eef3f9');
+  },
+});
+const PAT = '#5fcfb0', PATD = '#2f9a80', RIMC = '#8be3c8', BR = '#d9a84a', BRD = '#a8802a', VERD = '#6fd1b5';
+const handleDark = (c, x, y, w, h) => { rp(c, x, y, w, h, h / 2); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 12; c.strokeStyle = OUT; c.stroke(); };
+Object.assign(ART, {
+  drill(c) {
+    rp(c, 250, 320, 130, 230, 30); c.fillStyle = '#3b4358'; c.fill(); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+    blob(c, 100, 160, 430, 200, 50, '#f5c542', '#d19e1a');
+    metal(c, 520, 205, 90, 100, 14); rp(c, 600, 242, 90, 26, 13); c.fillStyle = '#9aa5b8'; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke();
+    disc(c, 175, 260, 24, '#ff4d52');
+  },
+  vac(c) {
+    metal(c, 300, 80, 120, 80, 16);
+    blob(c, 130, 140, 460, 360, 110, '#9aa5b8', '#7a8499');
+    disc(c, 360, 320, 130, '#3b4358');
+    for (let a = 0; a < 6; a++) { c.save(); c.translate(360, 320); c.rotate(a * Math.PI / 3); rp(c, 12, -15, 100, 30, 15); c.fillStyle = '#d5dbe6'; c.fill(); c.lineWidth = 7; c.strokeStyle = OUT; c.stroke(); c.restore(); }
+    disc(c, 360, 320, 28, '#eef3f9');
+  },
+  opener(c) {
+    rp(c, 40, 390, 640, 60, 18); c.fillStyle = '#9aa5b8'; c.fill(); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+    blob(c, 70, 150, 380, 240, 50, '#eef3f9', '#b7c3d3');
+    visor(c, 120, 200, 150, 100, 44); disc(c, 340, 240, 22, '#ff4d52'); disc(c, 390, 240, 22, '#5fe08a');
+    blob(c, 470, 380, 130, 130, 26, '#3b4358', '#262a3b');
+  },
+  alt(c) {
+    metal(c, 80, 190, 140, 64, 22); metal(c, 80, 410, 140, 64, 22);
+    blob(c, 170, 120, 390, 400, 130, '#8d96a8', '#6b7384');
+    for (let i = 0; i < 4; i++) { rp(c, 220, 190 + i * 22, 90, 10, 5); c.fillStyle = OUT; c.fill(); }
+    disc(c, 380, 330, 120, '#d5dbe6'); disc(c, 380, 330, 72, '#9aa5b8'); disc(c, 380, 330, 24, '#3b4358');
+    metal(c, 520, 110, 110, 56, 14);
+  },
+  sauce(c) {
+    handleDark(c, 440, 300, 240, 54);
+    blob(c, 120, 200, 360, 300, 50, PAT, PATD);
+    rp(c, 96, 168, 408, 60, 30); c.fillStyle = RIMC; c.fill(); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+  },
+  bowl(c) {
+    c.beginPath(); c.moveTo(100, 250); c.lineTo(620, 250); c.bezierCurveTo(620, 470, 500, 530, 360, 530); c.bezierCurveTo(220, 530, 100, 470, 100, 250); c.closePath();
+    const g = c.createLinearGradient(0, 250, 0, 530); g.addColorStop(0, PAT); g.addColorStop(1, PATD); c.fillStyle = g; c.fill(); c.lineWidth = 14; c.strokeStyle = OUT; c.stroke();
+    rp(c, 80, 214, 560, 66, 33); c.fillStyle = RIMC; c.fill(); c.stroke();
+  },
+  pan(c) {
+    handleDark(c, 470, 330, 220, 52);
+    disc(c, 320, 330, 235, PAT); disc(c, 320, 330, 175, RIMC);
+    c.beginPath(); c.arc(320, 330, 120, 3.6, 5.0); c.lineWidth = 16; c.strokeStyle = '#ffffffcc'; c.lineCap = 'round'; c.stroke();
+  },
+  pot(c) {
+    handleDark(c, 60, 320, 140, 50); handleDark(c, 520, 320, 140, 50);
+    blob(c, 170, 170, 380, 380, 40, PAT, PATD);
+    rp(c, 170, 330, 380, 26, 8); c.fillStyle = PATD; c.fill(); c.lineWidth = 8; c.strokeStyle = OUT; c.stroke();
+    rp(c, 150, 130, 420, 66, 30); c.fillStyle = RIMC; c.fill(); c.lineWidth = 14; c.stroke();
+    disc(c, 360, 112, 28, '#3b4358');
+  },
+  ring(c) {
+    c.beginPath(); c.arc(360, 340, 160, 0, 7); c.lineWidth = 98; c.strokeStyle = OUT; c.stroke(); c.lineWidth = 72; c.strokeStyle = '#e0b94f'; c.stroke();
+    c.beginPath(); c.arc(360, 340, 160, 3.5, 5); c.lineWidth = 20; c.strokeStyle = '#fff9'; c.lineCap = 'round'; c.stroke();
+    c.beginPath(); c.moveTo(360, 40); c.lineTo(440, 120); c.lineTo(360, 205); c.lineTo(280, 120); c.closePath(); c.fillStyle = '#ff7ac8'; c.fill(); c.lineWidth = 12; c.strokeStyle = OUT; c.lineJoin = 'round'; c.stroke();
+    c.beginPath(); c.moveTo(280, 120); c.lineTo(440, 120); c.moveTo(360, 40); c.lineTo(330, 120); c.lineTo(360, 205); c.lineWidth = 7; c.stroke();
+  },
+  fixture(c) {
+    blob(c, 120, 330, 400, 80, 36, BR, BRD); blob(c, 440, 330, 80, 190, 34, BR, BRD);
+    blob(c, 310, 250, 64, 100, 16, BR, BRD); blob(c, 210, 195, 264, 62, 30, BR, BRD);
+    blob(c, 60, 290, 80, 190, 20, BR, BRD);
+    disc(c, 80, 320, 12, '#8f6a1f'); disc(c, 80, 450, 12, '#8f6a1f');
+  },
+  plate(c) {
+    disc(c, 360, 300, 262, '#c98750'); disc(c, 360, 300, 195, '#b87a4b');
+    [[70, 8], [125, 14], [170, 20]].forEach(([r, n]) => { for (let i = 0; i < n; i++) { const a = i / n * 6.283 + r; c.beginPath(); c.arc(360 + Math.cos(a) * r, 300 + Math.sin(a) * r, 15, 0, 7); c.fillStyle = '#d9a066'; c.fill(); c.lineWidth = 5; c.strokeStyle = OUT; c.stroke(); } });
+    disc(c, 360, 300, 40, '#8f5a33');
+  },
+  statue(c) {
+    blob(c, 190, 500, 340, 86, 16, '#9aa5b8', '#7a8499');
+    c.beginPath(); c.moveTo(270, 505); c.lineTo(315, 260); c.lineTo(405, 260); c.lineTo(450, 505); c.closePath(); c.fillStyle = VERD; c.fill(); c.lineWidth = 14; c.lineJoin = 'round'; c.strokeStyle = OUT; c.stroke();
+    rp(c, 410, 120, 56, 170, 28); c.fillStyle = VERD; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(438, 20); c.quadraticCurveTo(488, 70, 438, 125); c.quadraticCurveTo(390, 70, 438, 20); c.fillStyle = '#ff8a3d'; c.fill(); c.lineWidth = 10; c.stroke();
+    disc(c, 360, 205, 52, VERD);
+    [-1, 0, 1].forEach(i => { c.beginPath(); c.moveTo(360 + i * 34 - 12, 165); c.lineTo(360 + i * 46, 118); c.lineTo(360 + i * 34 + 12, 165); c.closePath(); c.fillStyle = VERD; c.fill(); c.lineWidth = 8; c.stroke(); });
+  },
+});
+const artCache = {};
+function artCanvas(id) {
+  if (artCache[id]) return artCache[id];
+  const cv = document.createElement('canvas'); cv.width = 720; cv.height = 600;
+  ART[id](cv.getContext('2d')); return artCache[id] = cv;
+}
+function drawThumb(cv, id) { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); c.drawImage(artCanvas(id), 0, 0, cv.width, cv.height); }
+
+// ---------- crewmate ----------
+let sayT;
+function say(t) { const s = $('say'); s.textContent = t; s.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove('on'), 2200); }
+function hop() { $('crew').animate([{ transform: 'translateY(0) scale(1,1)' }, { transform: 'translateY(-34px) scale(.92,1.1)', offset: .4 }, { transform: 'translateY(0) scale(1.12,.88)', offset: .75 }, { transform: 'none' }], { duration: 480, easing: 'ease-out' }); }
+
+// ---------- bin ----------
+function rummage() {
+  const tier = cur(), st = cs();
+  if (!st.on) { bins[tier.id] = []; renderBin(); return; }
+  const w = weights(tier, st.luck), sum = w.reduce((a, b) => a + b, 0), list = [];
+  for (let i = 0; i < binCount(st); i++) {
+    let r = rand() * sum, k = 0; while (k < w.length - 1 && r >= w[k]) { r -= w[k]; k++; }
+    list.push({ it: tier.items[k], cond: rollCond(st.luck) });
+  }
+  bins[tier.id] = list.sort((a, b) => a.it.cu - b.it.cu);
+  say('Let\'s see what\'s in here…'); renderBin();
+}
+function renderBin() {
+  const el = $('binlist'); el.innerHTML = '';
+  const tier = cur(), st = cs(), list = bins[tier.id], full = bench.length >= MAX_BENCH;
+  $('binlabel').textContent = 'RECYCLE BIN  ·  ' + SECTION[tier.id].toUpperCase();
+  list.forEach((b, i) => {
+    const it = b.it, rar = tier.items.indexOf(it);
+    const d = document.createElement('div'); d.className = 'bin-item';
+    const cv = document.createElement('canvas'); cv.width = 108; cv.height = 90; drawThumb(cv, it.art);
+    const n = document.createElement('div'); n.className = 'n'; n.innerHTML = `${it.name}<small><span class="rar${rar}">${RARITY[rar]}</span> · <span class="cnd${b.cond}">${CONDS[b.cond].n}</span></small>`;
+    const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = it.cost ? money(it.cost) : 'Free';
+    btn.disabled = full || S.money < it.cost; btn.onclick = () => buy(i);
+    d.append(cv, n, btn); el.appendChild(d);
+  });
+  const stuck = st.on && list.length > 0 && !list.some(b => b.it.cost <= S.money) && !bench.length && S.cu <= 0;   // nothing affordable and nothing to earn from
+  $('binhint').textContent = !st.on ? `${tier.name} tier is locked.` : full ? `Workbench is full (${MAX_BENCH} items). Finish one first.` : stuck ? 'Nothing here you can afford. Press Rummage for a new batch.' : list.length ? '' : 'The bin is empty. Press Rummage!';
+  $('rummage').classList.toggle('pulse', st.on && (!list.length || stuck));
+  $('rummage').disabled = !st.on;
+}
+function buy(i) {
+  const tier = cur(), b = bins[tier.id][i]; if (!b || bench.length >= MAX_BENCH || S.money < b.it.cost) return;
+  S.money -= b.it.cost; bins[tier.id].splice(i, 1); if (!$('welcome').hidden) hideWelcome();
+  spawn({ tier, it: b.it, cond: b.cond });
+  coinSound(); say('Crack it open!'); update();
+}
+
+// ---------- items on the workbench ----------
+// Each art gets a tight bounding box and a hit mask, so an item is just its own shape
+const artInfo = {};
+function info(id) {
+  if (artInfo[id]) return artInfo[id];
+  const px = artCanvas(id).getContext('2d').getImageData(0, 0, 720, 600).data;
+  let x0 = 720, y0 = 600, x1 = 0, y1 = 0, cells = 0; const mask = new Uint8Array(360 * 300);
+  for (let y = 0; y < 600; y++) for (let x = 0; x < 720; x++) if (px[(y * 720 + x) * 4 + 3] > 20) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; mask[(y >> 1) * 360 + (x >> 1)] = 1;
+  }
+  for (let cy = 0; cy < 60; cy++) for (let cx = 0; cx < 72; cx++) if (px[((cy * 10 + 5) * 720 + cx * 10 + 5) * 4 + 3] > 100) cells++;
+  const pad = 16, bx = Math.max(0, x0 - pad), by = Math.max(0, y0 - pad);
+  return artInfo[id] = { mask, cells, bbox: { x: bx, y: by, w: Math.min(720, x1 + pad) - bx, h: Math.min(600, y1 + pad) - by } };
+}
+const TARGET_AREA = idx => 20000 + 7000 * idx;                   // on-screen size of an item (css px^2): rarer items are bigger
+const clicksFor = idx => Math.round(TARGET_AREA(idx) / 1000 * 0.65);    // casing strips an item has = clicks it needs at base power (13 to 27)
+const clickRate = (tier, s) => radiusFor(tier, s) / 5;           // strips that peel off with each click
+const bandY = (it, j) => Math.round(j * it.bbox.h / it.K);
+function updateTag(it) { const f = Math.min(1, it.prog / it.K); it.fill.style.width = (f * 100) + '%'; it.pct.textContent = Math.floor(f * 100) + '%'; }
+
+function spawn(o, saved) {
+  const benchEl = $('bench'), br = benchEl.getBoundingClientRect(), idx = o.tier.items.indexOf(o.it), inf = info(o.it.art), bb = inf.bbox;
+  let s = Math.sqrt(TARGET_AREA(idx) / (inf.cells * 100));
+  s = Math.min(s, 0.46 * br.width / bb.w, 0.6 * (br.height - 40) / bb.h);
+  const bw = bb.w * s, bh = bb.h * s, w = Math.max(bw, 120), h = bh + 34;
+  let x, y;
+  if (saved) { x = Math.min(Math.max(-10, saved.x), br.width - w + 10); y = Math.min(Math.max(0, saved.y), br.height - h + 6); }
+  else {
+    // try a few spots and keep the one that overlaps the other items the least
+    const others = bench.map(b => ({ x: b.card.offsetLeft, y: b.card.offsetTop, w: b.card.offsetWidth, h: b.card.offsetHeight }));
+    let pick = null;
+    for (let k = 0; k < 40; k++) {
+      const cx = rand() * Math.max(0, br.width - w), cy = 30 + rand() * Math.max(0, br.height - h - 30);
+      const ov = others.reduce((a, q) => a + Math.max(0, Math.min(cx + w, q.x + q.w) - Math.max(cx, q.x)) * Math.max(0, Math.min(cy + h, q.y + q.h) - Math.max(cy, q.y)), 0);
+      if (!pick || ov < pick.ov) pick = { x: cx, y: cy, ov };
+      if (!ov) break;
+    }
+    x = pick.x; y = pick.y;
+  }
+  const item = Object.assign(o, { done: false, s, bbox: bb, mask: inf.mask, K: clicksFor(idx), prog: 0, band: 0 });
+  const card = document.createElement('div'); card.className = 'card';
+  card.style.cssText = `left:${x}px;top:${y}px;width:${w}px;z-index:${++zTop}`;
+  const cv = `width="${bb.w}" height="${bb.h}"`;
+  card.innerHTML = `<div class="inner"><div class="body" style="width:${bw}px;height:${bh}px"><canvas class="rev" ${cv}></canvas><canvas class="coat" ${cv}></canvas><canvas class="shine" ${cv}></canvas><div class="strips"></div></div><div class="tag"><span class="nm">${o.it.name}</span><span class="pct">0%</span><div class="pbar"><i></i></div></div></div>`;
+  benchEl.appendChild(card);
+  Object.assign(item, { card, inner: card.firstChild, body: card.querySelector('.body'), coat: card.querySelector('.coat'), strips: card.querySelector('.strips'), fill: card.querySelector('.pbar i'), pct: card.querySelector('.pct') });
+  paintItem(item, card.querySelector('.rev'), item.coat, card.querySelector('.shine'));
+  if (saved) {   // bring back a half-peeled item
+    let p = saved.prog;
+    if (p == null && saved.cells) { const a = [...saved.cells], c2 = a.filter(v => v === '2').length, c1 = a.filter(v => v === '1').length; p = c2 / Math.max(1, c1 + c2) * item.K; }   // older saves
+    item.prog = Math.max(0, Math.min(item.K - 1, +p || 0)); item.band = Math.floor(item.prog);
+    for (let j = 0; j < item.band; j++) item.cctx.clearRect(0, bandY(item, j), bb.w, bandY(item, j + 1) - bandY(item, j));
+    updateTag(item);
+  }
+  bench.push(item);
+  if (!saved) setTimeout(thudSound, 380);
+  $('benchempty').style.display = 'none';
+}
+function paintItem(item, rev, coat, shine) {
+  const art = artCanvas(item.it.art), bb = item.bbox, bw = bb.w, bh = bb.h;
+  const rc = rev.getContext('2d'), cc = item.cctx = coat.getContext('2d');
+  // copper underneath, shaped like the item
+  const g = rc.createLinearGradient(0, 0, bw, bh); g.addColorStop(0, '#c26a2a'); g.addColorStop(1, '#f6ad66');
+  rc.fillStyle = g; rc.fillRect(0, 0, bw, bh);
+  rc.strokeStyle = '#ffe0b8aa'; rc.lineWidth = 12; rc.lineCap = 'round';
+  for (let y = 22, i = 0; y < bh + 30; y += 52, i++) { rc.beginPath(); rc.moveTo(0, y); for (let x = 0; x < bw + 44; x += 44) rc.quadraticCurveTo(x + 22, y + (i % 2 ? 22 : -22), x + 44, y); rc.stroke(); }
+  rc.globalCompositeOperation = 'destination-in'; rc.drawImage(art, bb.x, bb.y, bw, bh, 0, 0, bw, bh);
+  // painted coat. Each condition looks different:
+  cc.drawImage(art, bb.x, bb.y, bw, bh, 0, 0, bw, bh);
+  cc.globalCompositeOperation = 'source-atop';
+  if (item.cond === 0) {            // Rusty: brown blotches and streaks
+    cc.fillStyle = '#9a5a2a99'; for (let i = 0; i < 40; i++) { cc.beginPath(); cc.arc(rand() * bw, rand() * bh, 8 + rand() * 22, 0, 7); cc.fill(); }
+    cc.strokeStyle = '#6b3a1a88'; cc.lineWidth = 5; for (let i = 0; i < 10; i++) { const x = rand() * bw, y = rand() * bh * .8; cc.beginPath(); cc.moveTo(x, y); cc.lineTo(x + rand() * 6 - 3, y + 30 + rand() * 50); cc.stroke(); }
+  } else if (item.cond === 1) {     // Used: scuffs and dull specks
+    cc.strokeStyle = '#10131c66'; cc.lineWidth = 3; cc.lineCap = 'round';
+    for (let i = 0; i < 22; i++) { const x = rand() * bw, y = rand() * bh, a = -0.7 + rand() * .5, l = 16 + rand() * 34; cc.beginPath(); cc.moveTo(x, y); cc.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); cc.stroke(); }
+    cc.fillStyle = '#ffffff22'; for (let i = 0; i < 14; i++) { cc.beginPath(); cc.arc(rand() * bw, rand() * bh, 3 + rand() * 6, 0, 7); cc.fill(); }
+  } else {                          // Good / Pristine: clean paint with glossy bands
+    const a1 = item.cond === 3 ? '#ffffff55' : '#ffffff40', a2 = item.cond === 3 ? '#ffffff30' : '#ffffff22';
+    cc.fillStyle = a1; cc.beginPath(); cc.moveTo(0, bh * .32); cc.lineTo(bw * .34, 0); cc.lineTo(bw * .5, 0); cc.lineTo(0, bh * .66); cc.fill();
+    cc.fillStyle = a2; cc.beginPath(); cc.moveTo(0, bh * .76); cc.lineTo(bw * .22, bh * .5); cc.lineTo(bw * .3, bh * .5); cc.lineTo(0, bh * .9); cc.fill();
+  }
+  cc.globalCompositeOperation = 'source-over';
+  if (item.cond === 3) {            // Pristine: twinkling sparkles (decoration only)
+    const sc = shine.getContext('2d'); sc.fillStyle = '#fff'; sc.strokeStyle = '#10131c'; sc.lineWidth = 3;
+    const u = Math.max(18, bw * .06);
+    [[bw * .08, bh * .1], [bw * .92, bh * .2], [bw * .85, bh * .9]].forEach(([x, y]) => { sc.beginPath(); sc.moveTo(x, y - u); sc.quadraticCurveTo(x, y, x + u, y); sc.quadraticCurveTo(x, y, x, y + u); sc.quadraticCurveTo(x, y, x - u, y); sc.quadraticCurveTo(x, y, x, y - u); sc.fill(); });
+    shine.classList.add('on');
+  }
+}
+
+// ---- mouse / touch: the whole workbench listens, and only an item's own shape reacts ----
+let moveMode = false, drag = null, lastPtr = null, lastSpace = 0, paused = false;
+const benchEl = $('bench');
+const zOf = it => +it.card.style.zIndex;
+const toCanvas = (it, e) => { const r = it.body.getBoundingClientRect(); return { x: (e.clientX - r.left) / it.s + it.bbox.x, y: (e.clientY - r.top) / it.s + it.bbox.y }; };
+function hitItem(e) {
+  let best = null;
+  for (const it of bench) {
+    if (it.done) continue;
+    const p = toCanvas(it, e), ix = p.x | 0, iy = p.y | 0;
+    if (ix < 0 || iy < 0 || ix > 719 || iy > 599 || !it.mask[(iy >> 1) * 360 + (ix >> 1)]) continue;
+    if (!best || zOf(it) > zOf(best)) best = it;
+  }
+  return best;
+}
+function doMove(d, e) {
+  const br = benchEl.getBoundingClientRect(), c = d.it.card;
+  c.style.left = Math.min(Math.max(-10, e.clientX - d.ox), br.width - c.offsetWidth + 10) + 'px';
+  c.style.top = Math.min(Math.max(0, e.clientY - d.oy), br.height - c.offsetHeight + 6) + 'px';
+}
+benchEl.addEventListener('pointerdown', e => {
+  if (e.target.closest('#benchtools') || paused || (Ads && Ads.playing)) return;
+  const it = hitItem(e); if (!it) return;
+  audio(); it.card.style.zIndex = ++zTop;
+  if (e.shiftKey || moveMode) {     // move the item
+    drag = { it, ox: e.clientX - it.card.offsetLeft, oy: e.clientY - it.card.offsetTop };
+    try { benchEl.setPointerCapture(e.pointerId); } catch {}
+    it.inner.classList.add('lift'); $('ring').style.display = 'none';
+  } else clickItem(it, e);          // click: peel casing
+});
+benchEl.addEventListener('pointermove', e => {
+  lastPtr = { clientX: e.clientX, clientY: e.clientY };
+  if (drag) { doMove(drag, e); return; }
+  const it = hitItem(e), mv = e.shiftKey || moveMode;
+  if (it && !mv) { showRing(e, it); benchEl.style.cursor = 'none'; }
+  else { $('ring').style.display = 'none'; benchEl.style.cursor = it ? 'grab' : 'default'; }
+});
+const endDrag = () => { if (drag) { drag.it.inner.classList.remove('lift'); drag = null; } };
+benchEl.addEventListener('pointerup', endDrag); benchEl.addEventListener('pointercancel', endDrag);
+benchEl.addEventListener('pointerleave', () => { lastPtr = null; if (!drag) $('ring').style.display = 'none'; });
+$('moveToggle').onclick = () => { moveMode = !moveMode; $('moveToggle').textContent = 'Move mode: ' + (moveMode ? 'on' : 'off'); $('moveToggle').classList.toggle('on', moveMode); };
+
+// one click peels `clickRate` strips off the casing; each strip curls away and unravels
+function clickItem(it, e) {
+  it.prog = Math.min(it.K, it.prog + clickRate(it.tier, S.t[it.tier.id]));
+  const target = Math.floor(it.prog + 1e-9); let n = 0;
+  while (it.band < target) { peel(it, it.band, n * 45); it.band++; n++; }
+  updateTag(it);
+  it.inner.classList.remove('pop'); void it.inner.offsetWidth; it.inner.classList.add('pop');
+  const ring = $('ring'); ring.classList.remove('hit'); void ring.offsetWidth; ring.classList.add('hit');
+  hitSound();
+  if (it.band >= it.K) { it.done = true; setTimeout(() => finish(it, e.clientX, e.clientY), 480); }
+}
+function peel(it, j, delay) {
+  const bb = it.bbox, y0 = bandY(it, j), h = Math.max(1, bandY(it, j + 1) - y0), sc = it.s, dir = j % 2 ? -1 : 1, w = bb.w * sc;
+  const el = document.createElement('canvas'); el.width = bb.w; el.height = h; el.className = 'strip';
+  el.getContext('2d').drawImage(it.coat, 0, y0, bb.w, h, 0, 0, bb.w, h);
+  el.style.cssText = `top:${y0 * sc}px;width:${w}px;height:${h * sc + 0.6}px;transform-origin:${dir > 0 ? '0% 50%' : '100% 50%'}`;
+  it.strips.appendChild(el); it.cctx.clearRect(0, y0, bb.w, h);
+  el.animate([
+    { transform: 'translate(0,0) rotate(0deg) scaleY(1)', opacity: 1 },
+    { transform: `translate(${dir * 10}px,-4px) rotate(${dir * 8}deg) scaleY(1.15)`, opacity: 1, offset: .25 },
+    { transform: `translate(${dir * w * .25}px,${30 + rand() * 30}px) rotate(${dir * (70 + rand() * 40)}deg) scaleY(.6)`, opacity: .9, offset: .65 },
+    { transform: `translate(${dir * w * .45}px,${90 + rand() * 50}px) rotate(${dir * 170}deg) scaleY(.3)`, opacity: 0 }
+  ], { duration: 650, delay, easing: 'ease-in', fill: 'both' }).onfinish = () => el.remove();
+}
+function showRing(e, item) {
+  const ring = $('ring'), t = item.tier.id;
+  ring.style.cssText = `display:block;left:${e.clientX}px;top:${e.clientY}px`;
+  if (ring.dataset.t !== t) { ring.firstChild.innerHTML = ic(t, 40); ring.dataset.t = t; }
+}
+
+function yieldOf(it) {
+  return it.it.cu * CONDS[it.cond].m * powerMult(S.t[it.tier.id].power);
+}
+function finish(item, cx, cy) {
+  item.done = true; bench = bench.filter(b => b !== item); if (drag && drag.it === item) drag = null;
+  let got = yieldOf(item) * boostMult(), bonus = false;
+  if (rand() < 0.04 + 0.02 * lk(S.t[item.tier.id].luck)) { got *= 2 + Math.floor(rand() * 3); bonus = true; }
+  S.cu += got; S.stats.items++; S.stats.copper += got;
+  const r = item.card.getBoundingClientRect();
+  burst(r.left + r.width / 2, r.top + r.height / 2);
+  item.card.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.18,.9)', opacity: 1, offset: .3 }, { transform: 'scale(0)', opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' }).onfinish = () => item.card.remove();
+  popText(`+${fmt(got)} lb${bonus ? ` ${ic('luck', 28)} LUCKY!` : ''}`, r.left + r.width / 2, r.top + r.height / 2);
+  coinSound(); if (bonus) setTimeout(sellSound, 150);
+  hop(); say(bonus ? 'LUCKY!! That\'s sus' : 'Nice haul!');
+  $('ring').style.display = 'none';
+  if (!bench.length) $('benchempty').style.display = 'grid';
+  update(); save();
+  if (Ads) setTimeout(() => Ads.midgameIfIdle(), 900);
+}
+function burst(cx, cy) {
+  for (let i = 0; i < 16; i++) {
+    const n = document.createElement('div'); n.className = 'nug'; n.style.left = cx + 'px'; n.style.top = cy + 'px'; document.body.appendChild(n);
+    const dx = (rand() - .5) * 420, dy = -80 - rand() * 180;
+    n.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: `translate(${dx * .6}px,${dy}px) rotate(180deg)`, opacity: 1, offset: .45 }, { transform: `translate(${dx}px,${dy + 280}px) rotate(420deg)`, opacity: 0 }], { duration: 900 + rand() * 300, easing: 'ease-out' }).onfinish = () => n.remove();
+  }
+}
+function popText(t, x, y) { const d = document.createElement('div'); d.className = 'pop'; d.innerHTML = t; d.style.left = x + 'px'; d.style.top = y + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 1100); }
+
+// ---------- sidebar: tiers + upgrades ----------
+function switchTier(id) { S.active = id; if (S.t[id].on && !bins[id].length) rummage(); update(); save(); }
+function renderTools() {
+  const el = $('toolrow'); el.innerHTML = '';
+  TIERS.forEach(t => {
+    const st = S.t[t.id], b = document.createElement('button'); b.className = 'tool' + (S.active === t.id ? ' sel' : '');
+    b.innerHTML = `<span>${ic(t.id, 36)}</span>${t.name}<small>${st.on ? 'Lv ' + st.power : 'Locked'}</small>`;
+    b.onclick = () => switchTier(t.id); el.appendChild(b);
+  });
+}
+const lvlCost = (base, n, kind) => Math.round(base * Math.pow(GROW[kind], n));
+function renderShop() {
+  const el = $('shoplist'), tier = cur(), st = cs(), b = tier.base; el.innerHTML = '';
+  $('shoptitle').textContent = `${tier.name} upgrades`;
+  if (!st.on) {
+    const reqOk = !tier.req || S.t[tier.req.tier].power >= tier.req.power, cashOk = S.money >= tier.cost;
+    const box = document.createElement('div'); box.className = 'lockbox';
+    box.innerHTML = `<b>${tier.name} is locked</b><ul>${tier.req ? `<li class="${reqOk ? 'ok' : ''}">${TI[tier.req.tier].name} Power Lv ${tier.req.power} (you: Lv ${S.t[tier.req.tier].power})</li>` : ''}<li class="${cashOk ? 'ok' : ''}">${money(tier.cost)} cash</li></ul><div class="hint" style="margin:0 0 8px">Unlocks: ${tier.items.map(i => i.name).join(', ')}</div>${tier.wall ? '<div class="hint" style="margin:0 0 8px;color:var(--yellow)">This is the big wall. Expect to spend a long time saving for it.</div>' : ''}`;
+    const btn = document.createElement('button'); btn.className = 'primary'; btn.textContent = 'Unlock ' + tier.name; btn.disabled = !(reqOk && cashOk);
+    btn.onclick = () => { S.money -= tier.cost; st.on = true; st.power = 1; if (tier.id === 'hammer') { S.cirusUntil = 0; scheduleCirus(); } coinSound(); sellSound(); say(tier.name + ' unlocked!'); rummage(); update(); save(); };
+    box.appendChild(btn); el.appendChild(box); return;
+  }
+  const add = (title, sub, cost, maxed, fn) => {
+    const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<div class="n">${title}<small>${sub}</small></div>`;
+    const bt = document.createElement('button'); bt.className = 'primary'; bt.textContent = maxed ? 'Limit reached' : money(cost); if (maxed) bt.className = 'limit';
+    bt.disabled = maxed || S.money < cost; bt.onclick = () => { S.money -= cost; fn(); coinSound(); update(); save(); };
+    r.appendChild(bt); el.appendChild(r);
+  };
+  add(`${ic(tier.id, 22)} Power Lv ${st.power}`, 'More copper from every item, and a little more peeling per click', lvlCost(b.power, st.power - 1, 'power'), st.power >= CAP.power, () => st.power++);
+  add(`${ic('scratch', 22)} Click power Lv ${st.scrap}`, 'More casing peels off with every click', lvlCost(b.scrap, st.scrap, 'scrap'), st.scrap >= CAP.scrap, () => st.scrap++);
+  add(`${ic('luck', 22)} Luck Lv ${st.luck}`, 'More Pristine items and better finds', lvlCost(b.luck, st.luck, 'luck'), st.luck >= CAP.luck, () => st.luck++);
+  add(`${ic('bin', 22)} Bin size Lv ${st.bin} (${binCount(st)} items)`, 'A bigger bin every 3 levels', lvlCost(b.bin, st.bin, 'bin'), st.bin >= CAP.bin, () => { const was = binCount(st); st.bin++; if (binCount(st) > was) rummage(); });
+  add(`${ic('worker', 22)} Workers ${st.workers}`, 'Open this tier\'s items for you automatically', lvlCost(b.worker, st.workers, 'workers'), st.workers >= CAP.workers, () => st.workers++);
+}
+
+// ---------- scrapyard, workers ----------
+$('sell').onclick = () => { if (S.cu <= 0) return; S.money += S.cu * PRICE; S.cu = 0; sellSound(); hop(); say('Cha-ching!'); update(); save(); };
+// what the workers earn: copper per minute, per tool and in total (a worker pays out every 4 seconds)
+function workerStats() {
+  let lb = 0, count = 0; const rows = [];
+  TIERS.forEach(t => {
+    const st = S.t[t.id]; if (!st.on || !st.workers) return;
+    const w = weights(t, st.luck), sum = w.reduce((x, y) => x + y, 0), avg = t.items.reduce((x, it, i) => x + it.cu * w[i], 0) / sum;
+    const perMin = st.workers * avg * 0.15 * powerMult(st.power) * 15;
+    lb += perMin; count += st.workers; rows.push({ t, n: st.workers, perMin });
+  });
+  return { lb, count, rows };
+}
+function renderCrew() {
+  const ws = workerStats(), sec = $('crewsec'); sec.hidden = !ws.count; if (!ws.count) return;
+  $('crewicon').innerHTML = ic('worker', 38);
+  $('crewusd').textContent = money(ws.lb * PRICE); $('crewlb').textContent = `${fmt(ws.lb)} lb of copper a minute · ${ws.count} working`;
+  $('crewrows').innerHTML = ws.rows.map(r => {
+    const shown = Math.min(r.n, 8);
+    const miners = Array.from({ length: shown }, (_, i) => `<span style="--d:-${(i * 0.37).toFixed(2)}s">${ic('worker', 20)}</span>`).join('');
+    return `<div class="crewrow"><span>${ic(r.t.id, 24)}</span><span class="miners">${miners}${r.n > shown ? `<small style="color:var(--muted);align-self:center;margin-left:4px">+${r.n - shown}</small>` : ''}</span><span class="amt">${money(r.perMin * PRICE)}<small>${r.n} × ${r.t.name}</small></span></div>`;
+  }).join('');
+}
+setInterval(() => {
+  const ws = workerStats(); if (!ws.count || paused) return;
+  const got = ws.lb / 15 * boostMult(); S.cu += got; S.stats.copper += got;
+  const r = $('crewsec').getBoundingClientRect(); if (r.width) popText(`+${fmt(got)} lb`, r.right - 50, r.top + 18);
+  update();
+}, 4000);
+
+// ---------- dialogue + tutorial ----------
+const CREW_FACE = `<svg viewBox="0 0 120 124"><rect x="86" y="30" width="7" height="70" rx="3" transform="rotate(18 90 65)" fill="#c98a5c" stroke="#10131c" stroke-width="4"/><path d="M70 22 Q96 12 112 40 Q96 30 76 34 Z" transform="rotate(18 90 65)" fill="#9aa5b8" stroke="#10131c" stroke-width="4" stroke-linejoin="round"/><rect x="38" y="92" width="16" height="22" rx="5" fill="#3b4358" stroke="#10131c" stroke-width="5"/><rect x="62" y="92" width="16" height="22" rx="5" fill="#3b4358" stroke="#10131c" stroke-width="5"/><path d="M32 58 Q32 50 42 50 H74 Q84 50 84 58 V98 Q84 102 80 102 H36 Q32 102 32 98 Z" fill="#e2833b" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><rect x="44" y="66" width="28" height="16" rx="4" fill="#c26a2a" stroke="#10131c" stroke-width="3"/><rect x="20" y="56" width="14" height="30" rx="7" fill="#e2833b" stroke="#10131c" stroke-width="5"/><circle cx="58" cy="36" r="20" fill="#f2c9a0" stroke="#10131c" stroke-width="5"/><circle cx="51" cy="38" r="2.8" fill="#10131c"/><circle cx="65" cy="38" r="2.8" fill="#10131c"/><path d="M50 47 Q58 52 66 47" fill="none" stroke="#10131c" stroke-width="3" stroke-linecap="round"/><path d="M34 32 Q34 8 58 8 Q82 8 82 32 Z" fill="#f5d90a" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><rect x="30" y="29" width="56" height="8" rx="4" fill="#f5d90a" stroke="#10131c" stroke-width="4"/><circle cx="58" cy="17" r="7" fill="#fff" stroke="#10131c" stroke-width="3.5"/><circle cx="82" cy="40" r="4" fill="#f2c9a0" stroke="#10131c" stroke-width="3"/></svg>`, CIRUS_FACE = `<svg viewBox="0 0 120 124"><path d="M24 118 L30 62 Q32 48 46 46 H70 Q84 48 86 62 L92 118 Z" fill="#3a3f55" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><path d="M58 50 L44 118 H72 Z" fill="#262a3b"/><path d="M58 50 V118" stroke="#10131c" stroke-width="3"/><rect x="28" y="84" width="60" height="8" fill="#10131c" opacity=".55"/><circle cx="54" cy="74" r="2.5" fill="#8d96a8"/><circle cx="54" cy="94" r="2.5" fill="#8d96a8"/><path d="M36 54 L52 44 L50 66 Z" fill="#4a5070" stroke="#10131c" stroke-width="4" stroke-linejoin="round"/><path d="M80 54 L64 44 L66 66 Z" fill="#4a5070" stroke="#10131c" stroke-width="4" stroke-linejoin="round"/><ellipse cx="58" cy="34" rx="17" ry="19" fill="#07080c" stroke="#10131c" stroke-width="4"/><ellipse cx="58" cy="19" rx="38" ry="8" fill="#2b2140" stroke="#10131c" stroke-width="5"/><path d="M38 18 Q38 -2 58 -2 Q78 -2 78 18 Z" fill="#2b2140" stroke="#10131c" stroke-width="5" stroke-linejoin="round"/><rect x="38" y="10" width="40" height="6" fill="#8b5cf6"/><rect x="24" y="64" width="12" height="38" rx="6" fill="#3a3f55" stroke="#10131c" stroke-width="4"/><rect x="80" y="64" width="12" height="38" rx="6" fill="#3a3f55" stroke="#10131c" stroke-width="4"/></svg>`;
+
+let slides = [], slideI = 0, slideDone = null, hlEl = null;
+function openSlides(list, face, onDone) {
+  slides = list; slideI = 0; slideDone = onDone; $('mface').innerHTML = face;
+  $('ov').style.display = $('modal').style.display = 'block'; showSlide();
+}
+function showSlide() {
+  const s = slides[slideI]; $('mtitle').textContent = s.title; $('mtext').textContent = s.text;
+  $('mdots').innerHTML = slides.map((_, i) => `<i class="${i === slideI ? 'on' : ''}"></i>`).join('');
+  $('mback').style.display = slideI ? '' : 'none';
+  $('mskip').style.display = slides.length > 1 && slideI < slides.length - 1 ? '' : 'none';
+  $('mnext').textContent = slideI === slides.length - 1 ? 'Got it' : 'Next';
+  if (hlEl) hlEl.classList.remove('hl');
+  hlEl = s.target ? document.querySelector(s.target) : null; if (hlEl) hlEl.classList.add('hl');
+  tone(520 + slideI * 60, .1, 'triangle', .08);
+}
+function closeSlides() {
+  if (hlEl) hlEl.classList.remove('hl'); hlEl = null;
+  $('ov').style.display = $('modal').style.display = 'none';
+  const f = slideDone; slideDone = null; if (f) f();
+}
+$('mnext').onclick = () => { audio(); slideI < slides.length - 1 ? (slideI++, showSlide()) : closeSlides(); };
+$('mback').onclick = () => { slideI--; showSlide(); };
+$('mskip').onclick = closeSlides;
+
+const TUTORIAL = [
+  { title: 'Welcome!', text: 'Click junk to peel it open, sell the copper, and buy better junk.' },
+  { title: 'Buy junk', text: 'Pick an item from the recycle bin. The first one is free. Press Rummage for new ones.', target: '#binwrap' },
+  { title: 'Peel it', text: 'Click an item, or press Space, to peel its casing off. Keep going until it opens.', target: '#bench' },
+  { title: 'Sell copper', text: 'Sell your copper at the scrapyard. A shady buyer named Cirus sometimes pays more, but it is risky.', target: '#yardsec' },
+  { title: 'Upgrade', text: 'Spend cash on upgrades. Reach the next tool\'s requirement to unlock new items.', target: '#shopsec' },
+];
+const TOUCH = matchMedia('(hover: none) and (pointer: coarse)').matches;
+if (TOUCH) {
+  $('benchempty').innerHTML = 'Buy an item from the recycle bin below,<br>then tap it to peel the casing off.';
+  $('welcometext').textContent = 'Buy a free item below and tap it to peel it open. Sell the copper, then buy better junk.';
+  const h = document.querySelector('#helpbox .hint'); if (h) h.innerHTML = 'Tap an item to peel its casing off<br>Turn on <b>Move mode</b> (top right of the workbench) to drag items around';
+  TUTORIAL[2].text = 'Tap an item to peel its casing off. Keep going until it opens.';
+}
+function startTutorial() { hideWelcome(); openSlides(TUTORIAL, CREW_FACE, () => { S.tutorialDone = true; save(); }); }
+function showWelcome() { $('welcome').hidden = false; }
+function hideWelcome() { $('welcome').hidden = true; if (!S.tutorialDone) { S.tutorialDone = true; save(); } }
+$('welcomehow').onclick = startTutorial; $('welcomeok').onclick = hideWelcome;
+$('howto').onclick = startTutorial;
+$('mface').innerHTML = CREW_FACE;
+
+// ---------- Cirus (black market) ----------
+const MIN = 60000;
+const cirusHere = () => S.cirusUntil > Date.now();
+function scheduleCirus() { S.nextCirus = Date.now() + (15 + rand() * 15) * MIN; }
+function cirusArrive() {
+  S.cirusUntil = Date.now() + 3 * MIN; S.cirusMult = +(2 + rand() * 2).toFixed(2); scheduleCirus();
+  $('cirusmsg').textContent = ''; tone(140, .4, 'sawtooth', .12); setTimeout(() => tone(110, .5, 'sawtooth', .1), 200);
+  popText('Cirus is here!', innerWidth / 2 + 150, 120); save(); update();
+  if (!S.metCirus) {
+    S.metCirus = true; save();
+    openSlides([
+      { title: 'Cirus', text: 'Psst. Over here. Name\'s Cirus. Don\'t ask who I am.' },
+      { title: 'Cirus', text: 'I buy copper at way better prices than the scrapyard. No paperwork, no questions.' },
+      { title: 'Cirus', text: 'Fair warning: my deals go sideways sometimes. I might shortchange you, or the cops show up and take everything. Bigger deals, bigger risk.' },
+      { title: 'Cirus', text: 'I only stick around a few minutes, and I\'m back every so often. Don\'t miss me.' },
+    ], CIRUS_FACE);
+  }
+}
+function cirusRisk(amt) {
+  const extra = Math.min(0.10, Math.log10(1 + amt) * 0.02), luckCut = lk(maxLuck()) * 0.005;
+  return { short: Math.max(0.03, 0.15 + extra - luckCut), raid: Math.max(0.03, 0.10 + extra - luckCut) };
+}
+function cirusSell(frac) {
+  if (!cirusHere() || S.cu <= 0) return;
+  const amt = S.cu * frac, quote = amt * PRICE * S.cirusMult, k = cirusRisk(amt), roll = rand(), msg = $('cirusmsg');
+  S.cu -= amt;
+  if (roll < k.raid) {
+    const fine = Math.min(S.money, S.money * 0.15); S.money -= fine; S.cirusUntil = 0;
+    msg.textContent = `Cops!  You lost ${fmt(amt)} lb and paid a ${money(fine)} fine. Cirus ran off.`;
+    say('Run!!'); tone(300, .6, 'sawtooth', .15); setTimeout(() => tone(200, .6, 'sawtooth', .15), 250);
+  } else if (roll < k.raid + k.short) {
+    const pay = quote * 0.4; S.money += pay;
+    msg.textContent = `Cirus shorted you: only ${money(pay)} for ${fmt(amt)} lb (fake bills).`;
+    say('That\'s sus…'); tone(200, .4, 'square', .1);
+  } else {
+    S.money += quote;
+    msg.textContent = `Deal done: ${money(quote)} for ${fmt(amt)} lb.`; sellSound(); hop(); say('Shady, but it paid!');
+  }
+  update(); save();
+}
+$('cSellAll').onclick = () => cirusSell(1);
+$('cSellHalf').onclick = () => cirusSell(0.5);
+function cirusTick() {
+  const now = Date.now();
+  if (!S.t.hammer.on) { $('cirussec').style.display = 'none'; return; }
+  if (!S.nextCirus) scheduleCirus();
+  if (!cirusHere() && S.cirusUntil && S.cirusUntil <= now) { S.cirusUntil = 0; popText('Cirus left', innerWidth / 2 + 150, 120); save(); }
+  if (!cirusHere() && now >= S.nextCirus && getComputedStyle($('modal')).display === 'none') cirusArrive();
+  const sec = $('cirussec'), here = cirusHere();
+  sec.style.display = here ? 'block' : 'none';
+  if (here) {
+    const left = Math.ceil((S.cirusUntil - now) / 1000), k = cirusRisk(S.cu);
+    $('cirusinfo').textContent = `pays ×${S.cirusMult} · leaves in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    $('cirusinfo').title = `Risk on a full sale: ${Math.round((k.short + k.raid) * 100)}% something goes wrong`;
+    $('cSellAll').disabled = $('cSellHalf').disabled = S.cu <= 0;
+    $('cSellAll').textContent = `Sell all (${Math.round((k.short + k.raid) * 100)}% risk)`;
+    if (!$('cirusface').innerHTML) $('cirusface').innerHTML = CIRUS_FACE;
+  }
+}
+setInterval(cirusTick, 1000);
+
+// ---------- misc ui ----------
+function update() {
+  $('money').textContent = money(S.money);
+  $('cu').textContent = fmt(S.cu) + ' lb';
+  $('price').textContent = '$' + PRICE.toFixed(2) + '/lb';
+  $('sellamt').textContent = fmt(S.cu) + ' lb'; $('sellval').textContent = money(S.cu * PRICE); $('sell').disabled = S.cu <= 0;
+  renderBin(); renderTools(); renderShop(); renderCrew(); renderBoost();
+  if (typeof maybeEnding === 'function') maybeEnding();
+}
+const updateSoundBtn = () => { const b = $('soundToggle'); b.textContent = 'Sound: ' + (S.muted ? 'off' : 'on'); b.classList.toggle('off', !!S.muted); };
+function setSound(on) { S.muted = !on; applyGain(); updateSoundBtn(); save(); }
+$('soundToggle').onclick = () => { audio(); setSound(!!S.muted); };
+$('rummage').onclick = () => { audio(); rummage(); hop(); };
+$('logo').innerHTML = ic('logo', 36); updateSoundBtn();
+$('rummage').innerHTML = ic('refresh', 26) + 'Rummage';
+let resetArm = 0;
+$('reset').onclick = () => {
+  if (!resetArm) { $('reset').textContent = 'Click again to erase everything'; resetArm = setTimeout(() => { resetArm = 0; $('reset').textContent = 'Reset game'; }, 3000); return; }
+  clearTimeout(resetArm); resetArm = 0; $('reset').textContent = 'Reset game';
+  { try { localStorage.removeItem('copperScrapper'); } catch {} S = fresh(); bench.forEach(b => b.card.remove()); bench = []; bins = { stripper: [], hammer: [], saw: [], pry: [], torch: [], chisel: [] }; $('benchempty').style.display = 'grid'; rummage(); update(); showWelcome(); }
+};
+const dialogOpen = () => getComputedStyle($('modal')).display !== 'none';
+addEventListener('keydown', e => {
+  if (Ads && Ads.playing) return;
+  if (!$('savebox').hidden) { if (e.key === 'Escape') $('savebox').hidden = true; return; }
+  if (dialogOpen()) return;
+  if (e.key === 'Escape') { e.preventDefault(); setPaused(!paused); return; }
+  if (paused) return;
+  if (e.key === 'm' || e.key === 'M') { audio(); setSound(!!S.muted); return; }
+  if (e.code === 'Space') {                     // Space clicks whatever item the mouse is over
+    e.preventDefault();
+    if (!lastPtr) return;
+    const now = performance.now(), it = hitItem(lastPtr);
+    if (it && !moveMode && now - lastSpace >= 90) { lastSpace = now; it.card.style.zIndex = ++zTop; clickItem(it, lastPtr); showRing(lastPtr, it); }
+    return;
+  }
+  const t = TIERS[+e.key - 1]; if (t) switchTier(t.id);
+});
+addEventListener('keyup', e => { if (e.code === 'Space' && !dialogOpen() && $('savebox').hidden) e.preventDefault(); });   // keeps Space from pressing a focused button
+setInterval(save, 5000);
+setInterval(() => { if (!document.hidden && !paused) S.stats.sec++; }, 1000);
+
+// ---- save code (copy / paste) ----
+const encodeSave = () => 'CS1:' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign({}, S, { benchSave: benchSnapshot() })))));
+function decodeSave(code) {
+  code = code.trim(); if (!code.startsWith('CS1:')) throw new Error('That does not look like a save code.');
+  let d; try { d = JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); } catch { throw new Error('That save code is damaged.'); }
+  if (!d || typeof d !== 'object' || !d.t || typeof d.t !== 'object') throw new Error('That save code is damaged.');
+  return d;
+}
+function cleanSave(d) {   // never trust pasted data: clamp every number, rebuild the tiers
+  const out = Object.assign(fresh(), d), t = fresh().t, num = (v, lo, hi, def) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : def, lvl = (v, hi) => Math.floor(num(v, 0, hi, 0));
+  out.money = num(out.money, 0, 1e15, 0); out.cu = num(out.cu, 0, 1e18, 0);
+  TIERS.forEach(tr => { const x = d.t[tr.id] || {}, on = !!x.on || tr.id === 'stripper'; t[tr.id] = { on, power: on ? Math.max(1, lvl(x.power, CAP.power)) : 0, scrap: lvl(x.scrap, CAP.scrap), luck: lvl(x.luck, CAP.luck), bin: lvl(x.bin, CAP.bin), workers: lvl(x.workers, CAP.workers) }; });
+  out.t = t; if (!TI[out.active] || !t[out.active].on) out.active = 'stripper';
+  const st = d.stats || {}; out.stats = { items: Math.floor(num(st.items, 0, 1e12, 0)), copper: num(st.copper, 0, 1e18, 0), sec: Math.floor(num(st.sec, 0, 1e10, 0)) };
+  out.finished = !!out.finished; out.muted = !!out.muted;
+  return out;
+}
+function restoreBench(list) { (list || []).slice(0, MAX_BENCH).forEach(sv => { const t = TI[sv.tier], it = t && t.items.find(i => i.id === sv.it); if (it) spawn({ tier: t, it, cond: sv.cond }, sv); }); }
+function applySave(d) {
+  S = cleanSave(d); bench.forEach(b => b.card.remove()); bench = []; TIERS.forEach(t => bins[t.id] = []);
+  restoreBench(S.benchSave); delete S.benchSave;
+  $('benchempty').style.display = bench.length ? 'none' : 'grid';
+  rummage(); update(); updateSoundBtn(); save();
+}
+let loadArm = 0;
+$('savebtn').onclick = () => { $('savetext').value = encodeSave(); $('savemsg').textContent = ''; $('savebox').hidden = false; $('savetext').focus(); $('savetext').select(); };
+$('savecopy').onclick = async () => { const t = $('savetext'); t.focus(); t.select(); try { await navigator.clipboard.writeText(t.value); $('savemsg').textContent = 'Copied.'; } catch { $('savemsg').textContent = 'Press Ctrl+C (Cmd+C on a Mac) to copy the selected code.'; } };
+$('saveload').onclick = () => {
+  try {
+    const d = decodeSave($('savetext').value);
+    if (!loadArm) { $('saveload').textContent = 'Click again to replace your progress'; loadArm = setTimeout(() => { loadArm = 0; $('saveload').textContent = 'Load this code'; }, 3500); return; }
+    clearTimeout(loadArm); loadArm = 0; $('saveload').textContent = 'Load this code';
+    applySave(d); $('savemsg').textContent = 'Save loaded.';
+  } catch (e) { $('savemsg').textContent = e.message || 'That save code could not be read.'; }
+};
+$('saveclose').onclick = () => { $('savebox').hidden = true; };
+
+// ---- the ending: every tool unlocked and every upgrade at its limit ----
+const allLimits = () => TIERS.every(t => { const x = S.t[t.id]; return x.on && x.power >= CAP.power && x.scrap >= CAP.scrap && x.luck >= CAP.luck && x.bin >= CAP.bin && x.workers >= CAP.workers; });
+function showEnding() {
+  const st = S.stats, h = Math.floor(st.sec / 3600), m = Math.floor(st.sec % 3600 / 60);
+  openSlides([
+    { title: 'You did it!', text: 'Every tool is unlocked and every upgrade is at its limit. There is nothing left to buy.' },
+    { title: 'Your haul', text: `Time played: ${h}h ${m}m. Items opened: ${fmt(st.items)}. Copper mined: ${fmt(st.copper)} lb. Cash: ${money(S.money)}.` },
+    { title: 'Thanks for playing', text: 'You can keep playing as long as you like. Cirus still visits.' },
+  ], CREW_FACE, save);
+  burst(innerWidth / 2, innerHeight / 2); setTimeout(() => burst(innerWidth / 3, innerHeight / 2), 250); setTimeout(() => burst(innerWidth * 2 / 3, innerHeight / 2), 500); sellSound();
+}
+function maybeEnding() { if (!S.finished && allLimits() && !dialogOpen() && $('savebox').hidden) { S.finished = true; save(); showEnding(); } }
+setInterval(maybeEnding, 2000);
+
+// ---------- portal ads (Poki / CrazyGames) ----------
+// With no portal SDK on the page every call is a quiet no-op, and the boost panel stays hidden.
+function boostMult() { return Date.now() < S.boostUntil ? 2 : 1; }
+const BOOST_MS = 5 * 60000, MIDGAME_GAP = 4 * 60000;
+const boostCost = () => Math.max(20, Math.round(S.money * 0.08));
+Ads = {
+  kind: 'none', ready: false, playing: false, last: Date.now(), gp: false, started: false,
+  detect() { this.kind = window.PokiSDK ? 'poki' : (window.CrazyGames && window.CrazyGames.SDK) ? 'crazy' : 'none'; return this.kind; },
+  async init() {
+    this.detect();
+    try {
+      if (this.kind === 'poki') { try { await window.PokiSDK.init(); } catch {} window.PokiSDK.gameLoadingFinished(); }
+      else if (this.kind === 'crazy') {
+        await window.CrazyGames.SDK.init();
+        try { window.CrazyGames.SDK.game.loadingStop(); } catch {}
+        try { const v = window.CrazyGames.SDK.data.getItem('copperScrapper'); if (v) { const d = JSON.parse(v); if (((d.stats && d.stats.sec) || 0) > S.stats.sec) applySave(d); } } catch {}   // cloud save for signed-in players
+      }
+    } catch {}
+    this.ready = true; update();
+  },
+  // tell the portal when the player is actually playing (not in a dialog, a menu, an ad or another tab)
+  syncGameplay() {
+    const on = this.ready && this.started && !this.playing && !paused && !document.hidden && getComputedStyle($('modal')).display === 'none' && $('savebox').hidden;
+    if (on === this.gp) return; this.gp = on;
+    try {
+      if (this.kind === 'poki') on ? window.PokiSDK.gameplayStart() : window.PokiSDK.gameplayStop();
+      else if (this.kind === 'crazy') on ? window.CrazyGames.SDK.game.gameplayStart() : window.CrazyGames.SDK.game.gameplayStop();
+    } catch {}
+  },
+  begin() { this.playing = true; $('adblock').hidden = false; this.syncGameplay(); this.guard = setTimeout(() => this.end(), 90000); },   // never leave the game blocked
+  end() { clearTimeout(this.guard); this.playing = false; adMute = false; applyGain(); $('adblock').hidden = true; this.syncGameplay(); },
+  // a video ad at a natural break. The portals also limit how often it can show.
+  midgame() {
+    if (this.kind === 'none' || !this.ready || this.playing || Date.now() - this.last < MIDGAME_GAP) return Promise.resolve(false);
+    this.last = Date.now(); this.begin();
+    if (this.kind === 'poki') return window.PokiSDK.commercialBreak(() => { adMute = true; applyGain(); }).then(() => { this.end(); return true; }).catch(() => { this.end(); return false; });
+    return new Promise(res => window.CrazyGames.SDK.ad.requestAd('midgame', {
+      adStarted: () => { adMute = true; applyGain(); },
+      adFinished: () => { this.end(); res(true); },
+      adError: () => { this.end(); res(false); } }));
+  },
+  // only break when nothing is half-peeled (or it has been a long while)
+  midgameIfIdle() { if (this.kind !== 'crazy') return; if (bench.every(b => b.prog === 0) || Date.now() - this.last > 6 * 60000) this.midgame(); },
+  // resolves true only if the player really watched the ad
+  rewarded() {
+    if (this.kind === 'none' || !this.ready || this.playing) return Promise.resolve(false);
+    this.begin();
+    if (this.kind === 'poki') return window.PokiSDK.rewardedBreak(() => { adMute = true; applyGain(); }).then(ok => { this.end(); return !!ok; }).catch(() => { this.end(); return false; });
+    return new Promise(res => window.CrazyGames.SDK.ad.requestAd('rewarded', {
+      adStarted: () => { adMute = true; applyGain(); },
+      adFinished: () => { this.end(); res(true); },
+      adError: () => { this.end(); res(false); } }));
+  },
+};
+function setPaused(p) {
+  if (p === paused) return; paused = p; $('pausebox').hidden = !p; $('pauseToggle').textContent = p ? 'Resume' : 'Pause';
+  if (p) { $('ring').style.display = 'none'; drag = null; }
+  Ads.syncGameplay();
+  if (!p && Ads.kind === 'poki') Ads.midgame();      // Poki wants its ad when play resumes after a pause
+}
+$('pauseToggle').onclick = () => setPaused(!paused); $('resumebtn').onclick = () => setPaused(false);
+function renderBoost() {
+  const sec = $('boostsec'); sec.hidden = !Ads || Ads.kind === 'none' || !Ads.ready; if (sec.hidden) return;
+  const left = S.boostUntil - Date.now(), body = $('boostbody');
+  if (left > 0) {
+    const m = Math.floor(left / 60000), r = String(Math.floor(left % 60000 / 1000)).padStart(2, '0');
+    if (sec.dataset.key !== 'on') { body.innerHTML = '<div class="boostnow"><b>x2 copper</b><span id="boostleft"></span></div><div class="desc">Every item and every worker pays double.</div>'; sec.dataset.key = 'on'; }
+    $('boostleft').textContent = `${m}:${r} left`; return;
+  }
+  const cost = boostCost(), key = 'off' + cost + (S.money >= cost);
+  if (sec.dataset.key === key) return; sec.dataset.key = key;
+  body.innerHTML = `<div class="desc">Double copper from every item and worker for 5 minutes.</div><div class="btns"><button id="boostpay" class="boostbtn"${S.money >= cost ? '' : ' disabled'}>Pay ${money(cost)}</button><button id="boostad" class="boostbtn adbtn">${ic('clap', 22)}Watch an ad<span class="adtag">AD</span></button></div>`;
+  $('boostad').onclick = async () => {
+    $('boostmsg').textContent = '';
+    const ok = await Ads.rewarded();
+    if (ok) { S.boostUntil = Date.now() + BOOST_MS; $('boostmsg').textContent = ''; sellSound(); say('Double copper!'); update(); save(); }
+    else $('boostmsg').textContent = 'No ad is available right now. You can pay instead, or try again later.';
+  };
+  $('boostpay').onclick = () => { const c = boostCost(); if (S.money < c) return; S.money -= c; S.boostUntil = Date.now() + BOOST_MS; $('boostmsg').textContent = ''; coinSound(); say('Double copper!'); update(); save(); };
+}
+setInterval(() => { renderBoost(); Ads.syncGameplay(); }, 1000);
+addEventListener('pointerdown', () => { Ads.started = true; }, { once: true, capture: true });
+addEventListener('keydown', () => { Ads.started = true; }, { once: true, capture: true });
+addEventListener('pointerdown', () => { try { if (ac && ac.state !== 'running' && !document.hidden) ac.resume(); } catch {} }, true);
+document.addEventListener('visibilitychange', () => { try { if (ac) document.hidden ? ac.suspend() : (!S.muted && ac.resume()); } catch {} Ads.syncGameplay(); });
+
+// bring back items that were on the workbench when the game was last saved
+restoreBench(S.benchSave);
+delete S.benchSave;
+rummage(); update(); cirusTick();
+if (!S.tutorialDone) showWelcome();
+Ads.init();
+</script>
+</body>
+</html>
